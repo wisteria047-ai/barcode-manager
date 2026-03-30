@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バーコード発行モジュール - 活用シーン</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #1a3a5c;
+    --blue: #2471a3;
+    --blue-light: #e8f4fd;
+    --green: #1e8449;
+    --green-light: #eafaf1;
+    --accent: #f0a500;
+    --gray-bg: #f5f7fa;
+    --gray-border: #dce6f0;
+    --text: #1f2d3d;
+    --text-sub: #5a6a7e;
+  }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+    background: #fff;
+  }
+
+  a { color: var(--blue); }
+
+  /* ---- Global Layout ---- */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- Header ---- */
+  .site-header {
+    background: var(--navy);
+    padding: 18px 0;
+  }
+  .site-header .inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .site-header .logo-text {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .site-header .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #2471a3 100%);
+    color: #fff;
+    padding: 72px 24px 64px;
+    text-align: center;
+  }
+  .hero .eyebrow {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a8d4f5;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 1.25;
+    margin-bottom: 20px;
+  }
+  .hero h1 span {
+    display: inline-block;
+    background: var(--accent);
+    border-radius: 4px;
+    padding: 0 6px;
+    line-height: 1.3;
+  }
+  .hero .sub {
+    font-size: 16px;
+    color: #c8dff0;
+    max-width: 560px;
+    margin: 0 auto 32px;
+    line-height: 1.75;
+  }
+  .hero .tags {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .hero .tag {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.35);
+    color: #fff;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  /* ---- Section titles ---- */
+  .section {
+    padding: 64px 24px;
+  }
+  .section-title {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .section-title .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--blue);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .section-title h2 {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--navy);
+    line-height: 1.3;
+  }
+  .section-title .desc {
+    margin-top: 10px;
+    font-size: 15px;
+    color: var(--text-sub);
+  }
+
+  /* ---- Use case cards ---- */
+  .usecase-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .usecase-card {
+    border: 1.5px solid var(--gray-border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+    background: #fff;
+  }
+  .usecase-card:hover {
+    box-shadow: 0 6px 28px rgba(26, 58, 92, 0.10);
+  }
+  .card-header {
+    background: var(--blue-light);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1.5px solid var(--gray-border);
+  }
+  .card-icon {
+    font-size: 36px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .card-header-text .num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--blue);
+    margin-bottom: 2px;
+  }
+  .card-header-text h3 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.3;
+  }
+  .card-body {
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 600px) {
+    .card-body { grid-template-columns: 1fr; }
+  }
+  .card-scenario p {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .data-example {
+    background: var(--gray-bg);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 14px;
+  }
+  .data-example .de-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+  .de-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .de-col {
+    background: var(--navy);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+  .de-col.barcode {
+    background: var(--blue);
+    position: relative;
+  }
+  .de-col.barcode::after {
+    content: " ▌▌▌";
+    font-size: 10px;
+    opacity: 0.7;
+  }
+  .card-benefits {
+    border-left: 2px solid var(--gray-border);
+    padding-left: 20px;
+  }
+  .card-benefits .b-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--green);
+    margin-bottom: 10px;
+  }
+  .benefit-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .benefit-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+  .benefit-list li::before {
+    content: "✓";
+    color: var(--green);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ---- Feature cards (3 reasons) ---- */
+  .features-section {
+    background: var(--gray-bg);
+    padding: 64px 24px;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  @media (max-width: 680px) {
+    .feature-grid { grid-template-columns: 1fr; }
+  }
+  .feature-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 22px;
+    border: 1.5px solid var(--gray-border);
+    text-align: center;
+  }
+  .feature-card .f-icon {
+    font-size: 40px;
+    margin-bottom: 14px;
+  }
+  .feature-card h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .feature-card p {
+    font-size: 13px;
+    color: var(--text-sub);
+    line-height: 1.75;
+  }
+  .feature-card .f-badge {
+    display: inline-block;
+    background: var(--blue-light);
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- CTA ---- */
+  .cta-section {
+    background: linear-gradient(135deg, var(--navy) 0%, #2471a3 100%);
+    padding: 72px 24px;
+    text-align: center;
+    color: #fff;
+  }
+  .cta-section h2 {
+    font-size: 28px;
+    font-weight: 900;
+    margin-bottom: 12px;
+  }
+  .cta-section p {
+    font-size: 15px;
+    color: #c8dff0;
+    margin-bottom: 32px;
+    line-height: 1.75;
+  }
+  .cta-btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 16px 48px;
+    border-radius: 50px;
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(240,165,0,0.4);
+  }
+  .cta-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(240,165,0,0.5);
+    color: #fff;
+  }
+  .cta-note {
+    margin-top: 16px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* ---- Footer ---- */
+  .site-footer {
+    background: #0e2238;
+    color: rgba(255,255,255,0.55);
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+  }
+  .site-footer a { color: rgba(255,255,255,0.7); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="inner">
+    <span class="logo-text">バーコード発行モジュール</span>
+    <span class="badge">活用事例</span>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="eyebrow">Use Cases</div>
+  <h1>こんな場面で<br><span>活躍します</span></h1>
+  <p class="sub">学校・図書室から小売店・オフィスまで、ExcelやCSVさえあればすぐにバーコードラベルを発行できます。ITの専門知識は一切不要です。</p>
+  <div class="tags">
+    <span class="tag">学校・図書室</span>
+    <span class="tag">小売・流通</span>
+    <span class="tag">オフィス備品管理</span>
+    <span class="tag">イベント受付</span>
+    <span class="tag">食品・製造</span>
+  </div>
+</section>
+
+<!-- Use Cases -->
+<section class="section">
+  <div class="container">
+    <div class="section-title">
+      <div class="label">Use Cases</div>
+      <h2>5つの活用シーン</h2>
+      <p class="desc">あらゆる現場での実践的な使い方をご紹介します</p>
+    </div>
+
+    <div class="usecase-grid">
+
+      <!-- Case 1 -->
+      <div class="usecase-card">
+        <div class="card-header">
+          <div class="card-icon">📚</div>
+          <div class="card-header-text">
+            <div class="num">CASE 01</div>
+            <h3>学校・図書室の蔵書管理</h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-scenario">
+            <p>図書室に新しく入荷した本の管理ラベルを一括作成したいとき、蔵書管理ソフトからエクスポートしたExcelファイルをそのまま読み込むだけでラベル作成が完了します。管理番号列をバーコードに指定し、タイトルと著者名をラベルに表示するだけで、返却管理に使えるプロ品質のバーコードラベルが完成します。手書き作業が大幅に削減され、貸し出し・返却のスキャン精度も向上します。</p>
+            <div class="data-example">
+              <div class="de-label">データ例（列名）</div>
+              <div class="de-cols">
+                <span class="de-col barcode">管理番号</span>
+                <span class="de-col">タイトル</span>
+                <span class="de-col">著者名</span>
+                <span class="de-col">分類コード</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-benefits">
+            <div class="b-title">BENEFITS</div>
+            <ul class="benefit-list">
+              <li>既存の蔵書台帳ExcelをそのままラベルデータとしてAT利用できる</li>
+              <li>手書きラベルの読み取りミスをゼロにできる</li>
+              <li>新着図書のラベル発行時間を大幅に短縮できる</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Case 2 -->
+      <div class="usecase-card">
+        <div class="card-header">
+          <div class="card-icon">🏪</div>
+          <div class="card-header-text">
+            <div class="num">CASE 02</div>
+            <h3>小売店の商品在庫管理</h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-scenario">
+            <p>仕入れた商品に自社管理用のバーコードラベルを貼り付けて在庫を管理したい小売店での活用例です。既存の在庫管理Excelから品番・商品名・価格を読み込み、品番をバーコードとして出力します。商品名と価格もラベルに表示することで、陳列棚への貼り付けと同時に価格確認も行えます。シーズン商品や新入荷のたびに素早くラベルを発行できます。</p>
+            <div class="data-example">
+              <div class="de-label">データ例（列名）</div>
+              <div class="de-cols">
+                <span class="de-col barcode">品番</span>
+                <span class="de-col">商品名</span>
+                <span class="de-col">価格</span>
+                <span class="de-col">仕入先コード</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-benefits">
+            <div class="b-title">BENEFITS</div>
+            <ul class="benefit-list">
+              <li>既存の在庫Excelとの連携で二重入力が不要になる</li>
+              <li>新入荷のたびに即座にラベルを発行できる</li>
+              <li>バーコードスキャナーで棚卸しの効率が上がる</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Case 3 -->
+      <div class="usecase-card">
+        <div class="card-header">
+          <div class="card-icon">🏢</div>
+          <div class="card-header-text">
+            <div class="num">CASE 03</div>
+            <h3>会社・オフィスの備品管理</h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-scenario">
+            <p>パソコン・モニター・家具などのオフィス備品に資産管理番号のバーコードラベルを貼り付けて、正確な資産台帳管理を実現します。総務部門が管理する資産台帳Excelに「資産番号」「品名」「管理部署」の列があれば、すぐにラベル発行を開始できます。資産番号をバーコードにすることで、スキャナーによる棚卸し作業が劇的にスピードアップします。異動や廃棄の際のラベル貼り替えも簡単です。</p>
+            <div class="data-example">
+              <div class="de-label">データ例（列名）</div>
+              <div class="de-cols">
+                <span class="de-col barcode">資産番号</span>
+                <span class="de-col">品名</span>
+                <span class="de-col">管理部署</span>
+                <span class="de-col">購入年度</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-benefits">
+            <div class="b-title">BENEFITS</div>
+            <ul class="benefit-list">
+              <li>年1回の棚卸し作業をスキャナー1本で完結できる</li>
+              <li>資産台帳Excelとそのまま連携できる</li>
+              <li>部署移動時のラベル差し替えに対応しやすい</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Case 4 -->
+      <div class="usecase-card">
+        <div class="card-header">
+          <div class="card-icon">🎪</div>
+          <div class="card-header-text">
+            <div class="num">CASE 04</div>
+            <h3>イベント・展示会の来場者管理</h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-scenario">
+            <p>展示会・社内イベント・研修会などの参加者に、受付番号入りのバーコードネームタグを発行するシーンです。事前申込みリストをExcelで用意しておき、当日の受付で本アプリを開くだけで即座にバーコードラベルを印刷できます。ファイルがない場合でも「手入力モード」で列名を設定して当日受付データを入力しながらその場で発行することも可能です。スキャンによる入退場管理で受付の混雑を解消できます。</p>
+            <div class="data-example">
+              <div class="de-label">データ例（列名）</div>
+              <div class="de-cols">
+                <span class="de-col barcode">受付番号</span>
+                <span class="de-col">氏名</span>
+                <span class="de-col">所属</span>
+                <span class="de-col">参加区分</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-benefits">
+            <div class="b-title">BENEFITS</div>
+            <ul class="benefit-list">
+              <li>当日申し込み分も手入力でその場で発行できる</li>
+              <li>受付の待ち行列をスキャンで素早くさばける</li>
+              <li>専用ソフト不要でブラウザだけで運用できる</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Case 5 -->
+      <div class="usecase-card">
+        <div class="card-header">
+          <div class="card-icon">🍱</div>
+          <div class="card-header-text">
+            <div class="num">CASE 05</div>
+            <h3>飲食店・食品の製造ロット管理</h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-scenario">
+            <p>惣菜・弁当・加工食品の製造現場で、ロット番号・品名・製造日を記載したバーコードラベルを毎日発行するシーンです。製造日ごとに変わるロット番号を含む当日分のデータをExcelで管理し、本アプリで読み込むだけで必要な枚数のラベルが準備できます。賞味期限や製造ラインの追跡に必要な情報をラベルに集約することで、トレーサビリティの向上と検品作業の効率化が同時に実現します。</p>
+            <div class="data-example">
+              <div class="de-label">データ例（列名）</div>
+              <div class="de-cols">
+                <span class="de-col barcode">ロット番号</span>
+                <span class="de-col">品名</span>
+                <span class="de-col">製造日</span>
+                <span class="de-col">賞味期限</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-benefits">
+            <div class="b-title">BENEFITS</div>
+            <ul class="benefit-list">
+              <li>毎日の製造ロットデータを当日中に即ラベル化できる</li>
+              <li>トレーサビリティ情報をバーコードで一元管理できる</li>
+              <li>手書きラベルの記入ミス・貼り間違いを防止できる</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /usecase-grid -->
+  </div>
+</section>
+
+<!-- Feature Summary -->
+<section class="features-section">
+  <div class="section-title">
+    <div class="label">Why Choose Us</div>
+    <h2>選ばれる3つの理由</h2>
+    <p class="desc">導入ハードルゼロ。今日から使えます。</p>
+  </div>
+  <div class="feature-grid">
+
+    <div class="feature-card">
+      <div class="f-badge">NO IT SKILLS NEEDED</div>
+      <div class="f-icon">👤</div>
+      <h3>ITリテラシー<br>不問で使える</h3>
+      <p>ブラウザを開いてファイルを選ぶだけ。プログラミングやデータベースの知識は一切必要ありません。マニュアルを読めば誰でも5分で操作できます。</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="f-badge">EXCEL READY</div>
+      <div class="f-icon">📊</div>
+      <h3>Excel・CSVを<br>そのまま読み込める</h3>
+      <p>既存のExcel台帳やCSVファイルをそのまま読み込み可能。データの作り直しや変換作業は不要です。Shift-JIS・UTF-8の両文字コードに対応しています。</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="f-badge">PRINT READY</div>
+      <div class="f-icon">🖨️</div>
+      <h3>そのまま印刷<br>追加費用ゼロ</h3>
+      <p>市販のA4・24面ラベル用紙に対応。専用プリンターや追加ソフトは不要です。お手持ちのプリンターとラベル用紙があればすぐに印刷できます。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>今すぐ使ってみる</h2>
+    <p>インストール不要・無料でお試しいただけます。<br>ExcelまたはCSVファイルをご用意の上、アプリを開いてください。</p>
+    <a href="index.html" class="cta-btn">アプリを開く</a>
+    <p class="cta-note">ブラウザのみで動作します &nbsp;|&nbsp; データは外部に送信されません</p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <p>バーコード発行モジュール &nbsp;&copy; 2026 &nbsp;|&nbsp; <a href="manual.html">ユーザーマニュアル</a></p>
+</footer>
+
+</body>
+</html>

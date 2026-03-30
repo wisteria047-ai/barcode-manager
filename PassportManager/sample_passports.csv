@@ -1,0 +1,11 @@
+PassengerID,Macid,Name Ja,Family Name En,Given Name En,Gender,BirthDate,Cabin Category,Cabin No,Boarding Date,Boarding Port Code,Boarding Port Name,Deboarding Date,Deboarding Port Code,Deboarding Port Name,Checkin Status,Bed Number,Is Operational Deboarding,Has Transit,Passport No,Passport Expiration Date,Has Mobile Key End Point Id,Is Collected,Nationality
+P001,MAC001,田中太郎,TANAKA,TARO,M,1985-03-15,Suite,A-101,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,1,false,false,TK1234567,2032-03-31,true,false,JP
+P002,MAC002,鈴木花子,SUZUKI,HANAKO,F,1990-07-22,Deluxe,B-205,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,2,false,false,TK2345678,2033-01-14,false,false,JP
+P003,MAC003,佐藤一郎,SATO,ICHIRO,M,1978-11-03,Standard,C-310,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,1,false,true,TK3456789,2031-08-19,true,false,JP
+P004,MAC004,山田美咲,YAMADA,MISAKI,F,1995-05-10,Suite,A-102,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Pending,2,false,false,TK4567890,2034-02-27,false,false,JP
+P005,MAC005,高橋健一,TAKAHASHI,KENICHI,M,1982-09-18,Deluxe,B-206,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,1,false,false,TK5678901,2032-11-04,true,false,JP
+P006,MAC006,伊藤由美,ITO,YUMI,F,1988-12-25,Standard,C-311,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,2,false,false,TK6789012,2033-06-09,false,false,JP
+P007,MAC007,渡辺修平,WATANABE,SHUHEI,M,2000-01-30,Suite,A-103,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,1,true,false,TK7890123,2034-03-14,true,false,JP
+P008,MAC008,中村さくら,NAKAMURA,SAKURA,F,1992-04-08,Deluxe,B-207,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,2,false,true,TK8901234,2031-11-30,false,false,JP
+P009,MAC009,小林大輔,KOBAYASHI,DAISUKE,M,1975-08-14,Standard,C-312,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Pending,1,false,false,TK9012345,2033-09-21,true,false,JP
+P010,MAC010,加藤真理,KATO,MARI,F,1998-06-05,Suite,A-104,2026-04-01,TYO,東京,2026-04-10,OSA,大阪,Checked In,2,false,false,TK0123456,2034-01-09,false,false,JP

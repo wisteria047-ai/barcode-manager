@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バーコード発行モジュール ユーザーマニュアル</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Meiryo', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+    color: #222;
+    background: #fff;
+  }
+
+  .page-wrapper {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  /* ---- Print button ---- */
+  .print-btn-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 24px;
+  }
+  .print-btn {
+    background: #1a3a5c;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 22px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: background 0.2s;
+  }
+  .print-btn:hover { background: #2471a3; }
+
+  /* ---- Cover / Title ---- */
+  .cover {
+    border-top: 6px solid #1a3a5c;
+    padding: 36px 0 28px;
+    margin-bottom: 40px;
+  }
+  .cover .label {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: #2471a3;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .cover h1 {
+    font-size: 30px;
+    font-weight: 700;
+    color: #1a3a5c;
+    line-height: 1.3;
+    margin-bottom: 10px;
+  }
+  .cover .subtitle {
+    font-size: 14px;
+    color: #555;
+  }
+  .cover .meta {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #888;
+  }
+
+  /* ---- Table of Contents ---- */
+  .toc {
+    background: #f4f7fb;
+    border-left: 4px solid #2471a3;
+    border-radius: 0 8px 8px 0;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc h2 {
+    font-size: 16px;
+    color: #1a3a5c;
+    margin-bottom: 14px;
+    font-weight: 700;
+  }
+  .toc ol {
+    padding-left: 20px;
+    line-height: 2;
+  }
+  .toc li { font-size: 14px; }
+  .toc a { color: #2471a3; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc ol ol { margin-top: 2px; }
+
+  /* ---- Section headings ---- */
+  h2.sec {
+    font-size: 22px;
+    color: #1a3a5c;
+    font-weight: 700;
+    border-bottom: 2px solid #1a3a5c;
+    padding-bottom: 8px;
+    margin: 52px 0 20px;
+  }
+  h3.subsec {
+    font-size: 17px;
+    color: #1a3a5c;
+    font-weight: 700;
+    margin: 32px 0 12px;
+    padding-left: 14px;
+    border-left: 4px solid #2471a3;
+  }
+  h4.detail {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+    margin: 24px 0 8px;
+  }
+
+  /* ---- Numbered steps ---- */
+  .steps { margin: 16px 0; }
+  .step {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+  }
+  .step-badge {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    background: #1a3a5c;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+  .step-body { flex: 1; }
+  .step-body strong { display: block; margin-bottom: 2px; }
+
+  /* ---- Tip / Warning boxes ---- */
+  .tip, .warn, .note {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .tip {
+    background: #e8f4fd;
+    border-left: 4px solid #2471a3;
+  }
+  .tip::before {
+    content: "ヒント：";
+    font-weight: 700;
+    color: #1a3a5c;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .warn {
+    background: #fffde7;
+    border-left: 4px solid #f9a825;
+  }
+  .warn::before {
+    content: "注意：";
+    font-weight: 700;
+    color: #7a5c00;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .note {
+    background: #f0f4f0;
+    border-left: 4px solid #4caf50;
+  }
+
+  /* ---- Tab illustration ---- */
+  .tab-row {
+    display: flex;
+    gap: 12px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .tab-card {
+    flex: 1;
+    min-width: 180px;
+    border: 1.5px solid #cbd8e8;
+    border-radius: 10px;
+    padding: 16px 18px;
+    background: #fafcff;
+  }
+  .tab-card .tab-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: #2471a3;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .tab-card .tab-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin-bottom: 6px;
+  }
+  .tab-card p { font-size: 13px; color: #555; line-height: 1.6; }
+
+  /* ---- Table ---- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th {
+    background: #1a3a5c;
+    color: #fff;
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 700;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #dce6f0;
+  }
+  tr:nth-child(even) td { background: #f4f7fb; }
+
+  /* ---- Q&A ---- */
+  .qa-item {
+    margin-bottom: 24px;
+    border: 1.5px solid #dce6f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .qa-q {
+    background: #e8f4fd;
+    padding: 12px 16px;
+    font-weight: 700;
+    color: #1a3a5c;
+    font-size: 14px;
+  }
+  .qa-q::before { content: "Q. "; }
+  .qa-a {
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #333;
+  }
+  .qa-a::before {
+    content: "A. ";
+    font-weight: 700;
+    color: #2471a3;
+  }
+
+  /* ---- Label paper table ---- */
+  .paper-table th:first-child { width: 30%; }
+
+  /* ---- Footer ---- */
+  .footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid #dce6f0;
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+  }
+
+  /* ---- Print styles ---- */
+  @media print {
+    .print-btn-bar { display: none; }
+    body { font-size: 13px; }
+    .page-wrapper { padding: 0; max-width: 100%; }
+    h2.sec { page-break-before: always; }
+    h2.sec:first-of-type { page-break-before: avoid; }
+    .tab-card { page-break-inside: avoid; }
+    .qa-item { page-break-inside: avoid; }
+    a { color: #1a3a5c; text-decoration: none; }
+    .toc a::after { content: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <!-- Print button -->
+  <div class="print-btn-bar">
+    <button class="print-btn" onclick="window.print()">印刷する</button>
+  </div>
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="label">User Manual</div>
+    <h1>バーコード発行モジュール<br>ユーザーマニュアル</h1>
+    <div class="subtitle">データ読み込みから印刷・貸出管理まで、すべての機能をやさしく解説します</div>
+    <div class="meta">対象バージョン：2.0 &nbsp;|&nbsp; 作成日：2026年3月</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Table of Contents -->
+  <!-- ============================================================ -->
+  <nav class="toc" id="top">
+    <h2>目次</h2>
+    <ol>
+      <li><a href="#sec1">はじめに</a>
+        <ol>
+          <li><a href="#sec1-1">概要</a></li>
+          <li><a href="#sec1-2">対象ユーザー</a></li>
+          <li><a href="#sec1-3">動作環境</a></li>
+        </ol>
+      </li>
+      <li><a href="#sec2">画面の見かた（4タブの説明）</a></li>
+      <li><a href="#sec3">STEP 1 データの準備</a>
+        <ol>
+          <li><a href="#sec3-1">ファイルから読み込む</a></li>
+          <li><a href="#sec3-2">手入力で始める</a></li>
+        </ol>
+      </li>
+      <li><a href="#sec4">STEP 2 データの確認・編集</a>
+        <ol>
+          <li><a href="#sec4-1">列名の変更・ソート</a></li>
+          <li><a href="#sec4-2">データの編集・削除</a></li>
+          <li><a href="#sec4-3">行・列の追加と削除</a></li>
+          <li><a href="#sec4-4a">検索・ソート・ページネーション</a></li>
+          <li><a href="#sec4-4b">行の選択（印刷対象の絞り込み）</a></li>
+          <li><a href="#sec4-5">CSVで書き出す</a></li>
+        </ol>
+      </li>
+      <li><a href="#sec5">STEP 3 バーコード・印刷</a>
+        <ol>
+          <li><a href="#sec5-1">バーコード形式の選択</a></li>
+          <li><a href="#sec5-2">バーコード列の選択</a></li>
+          <li><a href="#sec5-3">ラベル表示項目の選択</a></li>
+          <li><a href="#sec5-4">ラベルプリセットの選択</a></li>
+          <li><a href="#sec5-5">印刷プレビューの確認</a></li>
+          <li><a href="#sec5-6">印刷する</a></li>
+        </ol>
+      </li>
+      <li><a href="#sec6">STEP 4 貸出し・返却管理</a>
+        <ol>
+          <li><a href="#sec6-1">事前準備（バーコード列の設定）</a></li>
+          <li><a href="#sec6-2">貸出しを記録する</a></li>
+          <li><a href="#sec6-3">返却を記録する</a></li>
+          <li><a href="#sec6-4">貸出一覧と履歴の確認</a></li>
+          <li><a href="#sec6-5">履歴CSVの書き出し</a></li>
+        </ol>
+      </li>
+      <li><a href="#sec7">便利な機能</a>
+        <ol>
+          <li><a href="#sec7-1">ダークモード</a></li>
+          <li><a href="#sec7-2">カメラスキャン</a></li>
+          <li><a href="#sec7-3">バックアップと復元</a></li>
+          <li><a href="#sec7-4">ファイルに保存</a></li>
+          <li><a href="#sec7-5">別窓（ポップアウト）モード</a></li>
+          <li><a href="#sec7-6">設定画面</a></li>
+          <li><a href="#sec7-7">データの自動保存</a></li>
+        </ol>
+      </li>
+      <li><a href="#sec8">よくある質問（Q&amp;A）</a></li>
+      <li><a href="#sec9">対応ラベル用紙</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- Section 1: はじめに -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec1">1. はじめに</h2>
+
+  <h3 class="subsec" id="sec1-1">1-1 概要</h3>
+  <p>「バーコード発行モジュール」は、ExcelファイルやCSVファイルに記録されたデータをもとに、Code128 / Code39バーコードやQRコード付きのラベルをA4用紙に印刷できるアプリケーションです。さらに、バーコードを使った物品の貸出・返却管理機能も備えています。</p>
+  <p>必要なライブラリはすべてアプリに同梱されており、インターネット接続がなくても動作します。データはすべてお使いのパソコン内に保存され、外部サーバーへ送信されることはありません。</p>
+  <div class="tip">バージョン2.0では、QRコード対応、6種のラベルプリセット、貸出管理、カメラスキャン、ダークモード、バックアップ/復元など多数の新機能が追加されました。</div>
+
+  <h3 class="subsec" id="sec1-2">1-2 対象ユーザー</h3>
+  <p>本マニュアルは次のような方を対象としています。</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2;">
+    <li>学校・図書室で蔵書ラベルを作りたい方</li>
+    <li>小売店や倉庫で商品管理ラベルを印刷したい方</li>
+    <li>会社の備品・資産管理ラベルを作成したい方</li>
+    <li>イベント・展示会で来場者バーコードを発行したい方</li>
+    <li>物品の貸出・返却をバーコードで管理したい方</li>
+  </ul>
+  <p>Excelの基本操作（ファイルを開く・保存する）ができれば、本アプリをご利用いただけます。</p>
+
+  <h3 class="subsec" id="sec1-3">1-3 動作環境</h3>
+  <table>
+    <tr><th>項目</th><th>推奨環境</th></tr>
+    <tr><td>OS</td><td>Windows 10 / 11</td></tr>
+    <tr><td>画面解像度</td><td>1280×800 以上推奨</td></tr>
+    <tr><td>インターネット接続</td><td>不要（すべてオフラインで動作）</td></tr>
+    <tr><td>プリンター</td><td>A4用紙対応のレーザー／インクジェットプリンター</td></tr>
+  </table>
+  <div class="tip">本アプリはWindows専用です。EXEファイルをダブルクリックするだけで起動できます。インストール作業は不要です。</div>
+
+  <!-- ============================================================ -->
+  <!-- Section 2: 画面の見かた -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec2">2. 画面の見かた</h2>
+  <p>アプリを開くと、画面上部に4つのタブが表示されます。左から順に操作を進めていきます。</p>
+
+  <div class="tab-row">
+    <div class="tab-card">
+      <div class="tab-num">TAB 1</div>
+      <div class="tab-name">データの準備</div>
+      <p>ExcelやCSVを読み込む、または列名とデータを手入力してデータセットを作成します。</p>
+    </div>
+    <div class="tab-card">
+      <div class="tab-num">TAB 2</div>
+      <div class="tab-name">データの確認・編集</div>
+      <p>読み込んだデータを表形式で確認し、列名変更・行の追加・削除・編集、CSV書き出しを行います。</p>
+    </div>
+    <div class="tab-card">
+      <div class="tab-num">TAB 3</div>
+      <div class="tab-name">バーコード・印刷</div>
+      <p>バーコード形式とラベルプリセットを選び、A4用紙でプレビュー・印刷します。</p>
+    </div>
+    <div class="tab-card">
+      <div class="tab-num">TAB 4</div>
+      <div class="tab-name">貸出し・返却管理</div>
+      <p>バーコードスキャンで物品の貸出・返却を記録し、延滞管理や履歴の確認ができます。</p>
+    </div>
+  </div>
+
+  <div class="tip">タブは左から順に進めるように設計されています。データを読み込む前にタブ2〜4を開こうとすると、案内メッセージが表示されます。</div>
+  <p>画面右上には次のボタンがあります。</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2;">
+    <li><strong>🌙 / ☀️</strong> … ダークモードの切替（→ <a href="#sec7-1">7-1</a>）</li>
+    <li><strong>⚙</strong> … 設定画面を開く（→ <a href="#sec7-6">7-6</a>）</li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <!-- Section 3: STEP 1 データの準備 -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec3">3. STEP 1 データの準備</h2>
+  <p>タブ1「データの準備」では、バーコードラベルの元となるデータを用意します。ファイルから読み込む方法と、手入力で始める方法の2通りがあります。</p>
+
+  <h3 class="subsec" id="sec3-1">3-1 ファイルから読み込む</h3>
+  <p>Excel（.xlsx / .xls）、CSV（.csv）、テキスト（.txt）ファイルを読み込めます。</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>ファイルを選択する</strong>「ファイルを選択」ボタンをクリックし、読み込むファイルを選びます。またはファイルをドラッグ＆ドロップしてください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>文字コードは自動判定（CSV/TXTの場合）</strong>CSV・TXTファイルの文字コードは「UTF-8」「Shift-JIS」を自動的に判定します。文字化けが発生した場合は自動的に別のエンコーディングで再読み込みされます。Excelファイルの場合はこの処理は不要なため自動でスキップされます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>ヘッダー行の設定</strong>1行目が列名（ヘッダー）になっている場合は「1行目をヘッダーとして使用」にチェックを入れます。チェックを外すと、列名は自動的に「列1」「列2」…と付けられます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">4</div>
+      <div class="step-body"><strong>自動で読み込みが始まる</strong>ファイルを選択（またはドロップ）すると自動的にデータが読み込まれ、タブ2に自動で切り替わります。別途「読み込む」ボタンを押す必要はありません。</div>
+    </div>
+  </div>
+
+  <div class="tip">Excelファイルに複数のシートがある場合、最初のシート（左端）のデータが読み込まれます。対象シートを先頭に移動してから保存してください。</div>
+  <div class="tip">大量のデータ（1,000行以上）を読み込む場合は、バーコード生成に時間がかかる場合があります。必要に応じてデータを分割してご利用ください。</div>
+  <div class="tip">文字化けが検出されると画面上部に「文字化けしていませんか？」というバーが表示されます。「文字化けを直す」ボタンをクリックすると、別のエンコーディングで再読み込みします。</div>
+  <div class="tip">「📎 入力用テンプレートをダウンロード」からCSVまたはExcel形式のテンプレートファイルをダウンロードできます。テンプレートに入力してから読み込むと、スムーズにデータ登録ができます。</div>
+  <div class="tip">「📋 サンプルデータで試す」ボタンを押すと、13件のサンプルデータが読み込まれます。はじめて使う場合や、機能を試したい場合にご利用ください。</div>
+
+  <h3 class="subsec" id="sec3-2">3-2 手入力で始める</h3>
+  <p>ファイルがない場合や少量のデータを直接入力したい場合は、手入力モードを使います。</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>「手入力で始める」を選択</strong>タブ1下部の「手入力で始める」セクションを展開します。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>列名を入力する</strong>「列を追加」ボタンを押して列名を入力します（例：管理番号、品名、担当者）。列は何個でも追加できます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>「この列で入力を開始 →」を押す</strong>列名の設定が完了したらボタンを押します。タブ2の表が空の状態で開くので、各セルにデータを入力してください。</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Section 4: STEP 2 データの確認・編集 -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec4">4. STEP 2 データの確認・編集</h2>
+  <p>タブ2「データの確認・編集」では、読み込んだデータを表形式で確認・修正できます。</p>
+
+  <h3 class="subsec" id="sec4-1">4-1 列名の変更</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>列名をダブルクリック</strong>表の上部に列名がタブのような形で表示されています。変更したい列名を<strong>ダブルクリック</strong>してください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>新しい列名を入力して確定</strong>入力欄が表示されるので、新しい列名を入力してEnterキーを押すか、確定ボタンをクリックします。</div>
+    </div>
+  </div>
+  <div class="tip">列名はタブ3でバーコード列・ラベル表示列を選ぶ際にもそのまま使われます。わかりやすい名前にしておくと便利です。</div>
+  <div class="tip">列名をシングルクリックすると、その列でデータをソート（並べ替え）できます。もう一度クリックすると降順、さらにクリックするとソート解除になります。</div>
+
+  <h3 class="subsec" id="sec4-2">4-2 データの編集・削除</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>「編集」ボタンをクリック</strong>編集したい行の右端にある「編集」ボタンをクリックすると、その行全体が編集モードになります。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>値を変更して「保存」ボタンで確定</strong>各セルの入力欄に値を入力し、「保存」ボタンをクリックして変更を確定します。変更をやめたい場合は「取消」ボタンを押してください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>行を削除する</strong>各行の右端にある「削除」ボタンを押すと、その行が削除されます。削除直後に画面下部に「元に戻す」ボタンが8秒間表示されるので、誤って削除した場合はすぐにクリックしてください。</div>
+    </div>
+  </div>
+  <div class="tip">削除後8秒以内であれば「元に戻す」ボタンで復元できます。8秒を過ぎると取り消しはできませんので、その場合は元のファイルから再読み込みしてください。</div>
+  <div class="tip">テーブルが画面幅に収まらない場合は、テーブルを横にスクロールして「編集」「削除」ボタンを表示できます。右端にうっすらとグラデーションが見える場合、テーブルにまだ右側のコンテンツがあることを示しています。</div>
+
+  <h3 class="subsec" id="sec4-3">4-3 行・列の追加と削除</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>行を追加する</strong>テーブル上部の「＋ 行を追加」ボタンを押すと、空の行が末尾に追加されます。各セルをクリックして値を入力してください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>列を追加する</strong>「＋ 列を追加」ボタンを押すと、新しい列が追加されます。列名入力欄が自動で開くので、列名を入力してください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>列を削除する</strong>列名の右端に表示される「×」ボタンを押すと、その列が削除されます。</div>
+    </div>
+  </div>
+
+  <h3 class="subsec" id="sec4-4a">4-4 検索・ソート・ページネーション</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>検索する</strong>テーブル上部の「🔍 検索...」入力欄にキーワードを入力すると、入力内容に一致する行だけがリアルタイムで絞り込まれます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>ソート（並べ替え）する</strong>列名をクリックすると昇順（▲）に並べ替えられます。もう一度クリックすると降順（▼）、さらにクリックするとソートが解除されます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>表示件数を変更する</strong>テーブル上部の件数セレクターで1ページあたりの表示件数（20/50/100/200/500/1000件）を変更できます。データ件数が多い場合はページ送りボタンで切り替えてください。</div>
+    </div>
+  </div>
+
+  <h3 class="subsec" id="sec4-4b">4-5 行の選択（印刷対象の絞り込み）</h3>
+  <p>テーブル各行の左端にあるチェックボックスで行を選択できます。行を選択すると、<strong>選択した行のみが印刷対象</strong>になります。</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>個別に選択する</strong>各行の左端のチェックボックスをクリックして、印刷したい行にチェックを入れます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>全行を一括選択・解除する</strong>テーブルヘッダーのチェックボックスをクリックすると、全行を一括で選択・解除できます。</div>
+    </div>
+  </div>
+  <div class="tip">行を選択すると画面下部に「○ / ○ 件を選択中 — 選択した行のみ印刷対象になります」というバーが表示されます。選択を解除するには「選択を解除」ボタンを押してください。チェックをしなければ全行が印刷対象です。</div>
+
+  <h3 class="subsec" id="sec4-5">4-6 CSVで書き出す・データを読み直す</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>「CSVで書き出す」ボタンをクリック</strong>表の上部または下部にある「CSVで書き出す」ボタンをクリックします。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>ファイルが自動でダウンロードされる</strong>現在のデータがCSVファイルとしてダウンロードフォルダに保存されます。ファイル名は「barcode-data.csv」です。</div>
+    </div>
+  </div>
+  <div class="tip">書き出されるCSVはUTF-8（BOM付き）形式です。Excelで開く場合はそのままダブルクリックで開けます。</div>
+  <div class="tip">「🔄 データを読み直す」ボタンをクリックすると、タブ1に戻って別のファイルを読み込み直せます。現在のデータは保持されたままタブ1が表示されます。</div>
+
+  <!-- ============================================================ -->
+  <!-- Section 5: STEP 3 バーコード・印刷 -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec5">5. STEP 3 バーコード・印刷</h2>
+  <p>タブ3「バーコード設定・印刷」では、バーコードの形式とラベルのレイアウトを設定し、A4用紙に印刷します。6種のラベルプリセットとカスタムサイズに対応しています。</p>
+
+  <h3 class="subsec" id="sec5-1">5-1 バーコード形式の選択</h3>
+  <p>「バーコード形式」プルダウンから、用途に合った形式を選びます。</p>
+  <table>
+    <tr><th>形式</th><th>対応文字</th><th>特徴</th></tr>
+    <tr><td><strong>Code128</strong>（初期値）</td><td>英数字・記号（ASCII全文字）</td><td>もっとも汎用的。英数字混在のデータに最適</td></tr>
+    <tr><td><strong>Code39</strong></td><td>英大文字・数字・一部記号</td><td>古い規格との互換性が必要な場合に</td></tr>
+    <tr><td><strong>QRコード</strong></td><td>日本語・URL・長文テキストすべて</td><td>日本語を含むデータやURL、長い文字列に対応</td></tr>
+  </table>
+  <div class="tip">通常はCode128で問題ありません。日本語の文字列をコードに含めたい場合はQRコードを選んでください。</div>
+  <div class="warn">Code128 / Code39では全角文字（日本語など）は使用できません。全角文字が含まれているとエラーが表示されます。</div>
+
+  <h3 class="subsec" id="sec5-2">5-2 バーコード列の選択</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>バーコード列を選ぶ</strong>「バーコードにする列」プルダウンから、バーコードとして符号化したい列を選びます（例：管理番号、品番）。</div>
+    </div>
+  </div>
+  <p>選択した列の値がバーコード（またはQRコード）として各ラベルに印刷されます。</p>
+  <div class="warn">バーコードにする値が空のデータは、ラベルにバーコードが表示されません。事前にタブ2で空欄がないか確認してください。</div>
+
+  <h3 class="subsec" id="sec5-3">5-3 ラベル表示項目の選択</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>表示する列にチェックを入れる</strong>「ラベルに表示する列」のチェックボックス一覧から、バーコードと一緒に表示したいテキスト列を選びます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>レイアウト方向を選ぶ</strong>「バーコード上 → テキスト下（標準）」または「テキスト上 → バーコード下」から配置を選択できます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>テキスト設定を調整する</strong>必要に応じてフォントサイズ（自動 / 小 / 中 / 大）と最大表示行数（1〜5行）を設定できます。「バーコード値をテキストでも表示する」にチェックを入れると、バーコードの下にその値が文字でも表示されます。通常は初期値のままで問題ありません。</div>
+    </div>
+  </div>
+  <div class="tip">ラベルのスペースは限られています。表示列は2〜3列に絞るとレイアウトが崩れにくくなります。</div>
+
+  <h3 class="subsec" id="sec5-4">5-4 ラベルプリセットの選択</h3>
+  <p>「ラベルプリセット」プルダウンから用途に合ったレイアウトを選びます。</p>
+  <table>
+    <tr><th>プリセット</th><th>面数</th><th>1面サイズ</th><th>配列</th></tr>
+    <tr><td><strong>A4 24面（標準）</strong></td><td>24</td><td>63.5 × 33.9 mm</td><td>3列 × 8行</td></tr>
+    <tr><td>A4 44面</td><td>44</td><td>48.3 × 25.4 mm</td><td>4列 × 11行</td></tr>
+    <tr><td>A4 21面</td><td>21</td><td>63.5 × 38.1 mm</td><td>3列 × 7行</td></tr>
+    <tr><td>A4 12面</td><td>12</td><td>84.7 × 42.3 mm</td><td>2列 × 6行</td></tr>
+    <tr><td>A4 10面</td><td>10</td><td>86.4 × 50.8 mm</td><td>2列 × 5行</td></tr>
+    <tr><td>A4 65面</td><td>65</td><td>38.1 × 21.2 mm</td><td>5列 × 13行</td></tr>
+    <tr><td>カスタムサイズ</td><td>任意</td><td>任意</td><td>任意</td></tr>
+  </table>
+  <p>「カスタムサイズ」を選ぶと、列数・行数・ラベル幅を自由に入力できます。ラベルの高さと余白は自動計算されます。</p>
+  <div class="tip">市販のラベル用紙を使う場合は、用紙パッケージに記載されたサイズと配列が合うプリセットを選んでください。対応用紙の詳細は「<a href="#sec9">9. 対応ラベル用紙</a>」をご覧ください。</div>
+
+  <h3 class="subsec" id="sec5-5">5-5 印刷プレビューの確認</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>プレビューを表示する</strong>「印刷プレビューを表示」ボタンをクリックすると、A4レイアウトのプレビューが表示されます。設定を変更するとリアルタイムで反映されます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>ページを切り替える</strong>データが1ページに収まらない場合は複数ページになります。プレビュー下部の「前のページ」「次のページ」ボタンで確認できます。</div>
+    </div>
+  </div>
+
+  <h3 class="subsec" id="sec5-6">5-6 印刷する</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>「印刷する」ボタンをクリック</strong>プレビュー下部の「🖨 印刷する」ボタンをクリックすると、印刷前のチェックリストが表示されます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>印刷前チェックリストを確認する</strong>以下の5点が表示されるので確認してください：①用紙サイズA4 ②余白なし（または最小） ③倍率100% ④ヘッダーとフッターをオフ ⑤背景のグラフィックにチェック。確認したら「確認しました — 印刷する」をクリックします。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>印刷を実行する</strong>印刷ダイアログが開いたら、上記の設定を確認して「印刷」ボタンを押します。ラベル用紙をプリンターにセットしてから印刷してください。</div>
+    </div>
+  </div>
+  <div class="warn">印刷設定で「ヘッダーとフッターを印刷する」をオフにしてください。ページ番号やURLが印刷されるとレイアウトがずれる場合があります。</div>
+  <div class="tip">印刷ダイアログの「詳細設定」→「ヘッダーとフッター」のチェックを外すと、余分な文字が印刷されなくなります。</div>
+
+  <!-- ============================================================ -->
+  <!-- Section 6: STEP 4 貸出し・返却管理 -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec6">6. STEP 4 貸出し・返却管理</h2>
+  <p>タブ4「貸出し・返却管理」では、バーコード（またはQRコード）をスキャンして物品の貸出・返却を記録できます。延滞状況の確認や履歴のCSV書き出しにも対応しています。</p>
+
+  <h3 class="subsec" id="sec6-1">6-1 事前準備（バーコード列の設定）</h3>
+  <p>貸出し機能を使うには、あらかじめタブ3で「バーコードにする列」を設定しておく必要があります。</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>タブ3を開く</strong>タブ3「バーコード設定・印刷」を開きます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>バーコード列を選択する</strong>「バーコードにする列」プルダウンから、物品の識別に使う列（管理番号など）を選びます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>タブ4に移動する</strong>設定が完了したらタブ4を開いてください。バーコード列が未設定の場合は警告メッセージが表示されます。</div>
+    </div>
+  </div>
+  <div class="warn">バーコード列が未設定の状態ではスキャン・検索ができません。必ず先にタブ3で設定してください。</div>
+
+  <h3 class="subsec" id="sec6-2">6-2 貸出しを記録する</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>バーコードをスキャンまたは手入力する</strong>画面上部の入力欄にバーコードの値を入力し、「検索」ボタンを押します（Enterキーでも可）。USBバーコードリーダーを接続している場合は、スキャンするだけで自動入力されます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>該当する物品が表示される</strong>データベースに一致する物品が見つかると、品目情報が表示されます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>貸出し情報を入力する</strong>「貸出先（氏名・部署など）」「貸出日」「返却予定日」を入力します。貸出日は本日の日付、返却予定日は14日後の日付が自動入力されます。必要に応じて変更してください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">4</div>
+      <div class="step-body"><strong>「貸出しを記録する」ボタンを押す</strong>内容を確認して記録ボタンを押すと、貸出一覧に追加されます。</div>
+    </div>
+  </div>
+  <div class="tip">USBバーコードリーダーを接続すると、スキャンした値が自動入力されます。リーダーはキーボードとして認識されるため、特別なドライバーは不要です。</div>
+
+  <h3 class="subsec" id="sec6-3">6-3 返却を記録する</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>返却する物品のバーコードをスキャンする</strong>貸出し時と同様に、バーコードをスキャンまたは手入力して「検索」を押します。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>貸出中の情報が表示される</strong>該当の物品が貸出中であれば、貸出先・貸出日・返却予定日などが表示されます。返却予定日を過ぎている場合は「返却予定日を過ぎています！」と警告が出ます。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>返却日を確認して「返却を記録する」を押す</strong>返却日（初期値は本日）を確認し、ボタンを押して返却処理を完了します。</div>
+    </div>
+  </div>
+
+  <h3 class="subsec" id="sec6-4">6-4 貸出一覧と履歴の確認</h3>
+  <p>タブ4の下部には2つの表示モードがあります。</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2;">
+    <li><strong>「現在の貸出し」</strong> … 現在貸出中の物品一覧。バーコード、品目、貸出先、貸出日、返却予定日、状態が表示されます。</li>
+    <li><strong>「履歴」</strong> … 返却済みを含む全履歴。返却日と状態（貸出中 / 延滞 / 返却済）が確認できます。</li>
+  </ul>
+  <p>延滞中の物品がある場合は「延滞: ○件」のバッジが表示されます。</p>
+
+  <h3 class="subsec" id="sec6-5">6-5 履歴CSVの書き出し</h3>
+  <p>タブ4ヘッダーの「⬇ 履歴CSV」ボタンをクリックすると、貸出・返却の全履歴がCSVファイルとしてダウンロードされます。Excelで開いて分析・報告書作成に活用できます。</p>
+
+  <!-- ============================================================ -->
+  <!-- Section 7: 便利な機能 -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec7">7. 便利な機能</h2>
+  <p>バーコード発行モジュール v2.0 では、日常の業務をより効率的にする便利な機能が搭載されています。</p>
+
+  <h3 class="subsec" id="sec7-1">7-1 ダークモード</h3>
+  <p>画面右上の「🌙」ボタンをクリックすると、暗い配色のダークモードに切り替わります。もう一度クリック（「☀️」ボタン）すると元の明るい配色に戻ります。</p>
+  <p>設定画面（⚙）の「外観」セクションからも切り替えられます。設定は自動保存されるため、次回アプリを開いたときにも維持されます。</p>
+  <div class="tip">長時間の作業や暗い環境では、ダークモードに切り替えると目の負担を軽減できます。</div>
+
+  <h3 class="subsec" id="sec7-2">7-2 カメラスキャン</h3>
+  <p>パソコンのカメラ（Webカメラ）を使って、バーコードやQRコードを直接スキャンできます。</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>「📸 カメラ」ボタンをクリック</strong>タブ4のスキャン入力エリアにある「📸 カメラ」ボタンを押します。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>カメラへのアクセスを許可する</strong>カメラの使用許可を求められたら「許可」を選んでください。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>バーコード / QRコードをカメラに映す</strong>カメラ画面が開いたら、読み取りたいバーコードまたはQRコードをカメラに映してください。自動的に認識され、値が入力欄にセットされます。</div>
+    </div>
+  </div>
+  <div class="tip">カメラが認識されない場合は、Windowsの「設定」→「プライバシー」→「カメラ」でアプリのカメラアクセスが許可されていることを確認してください。</div>
+  <div class="tip">USBバーコードリーダーをお持ちの場合は、カメラよりも高速かつ正確にスキャンできます。リーダーはキーボードとして認識されるため、特別な設定は不要です。</div>
+
+  <h3 class="subsec" id="sec7-3">7-3 バックアップと復元</h3>
+  <p>データ・貸出履歴・設定をまとめて1つのJSONファイルにバックアップし、必要なときに復元できます。</p>
+
+  <h4 class="detail">バックアップを作成する</h4>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>設定画面（⚙）を開く</strong>画面右上の歯車ボタンをクリックします。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>「💾 バックアップ」ボタンをクリック</strong>「バックアップ・復元」セクションにあるボタンを押すと、JSONファイルがダウンロードされます。</div>
+    </div>
+  </div>
+
+  <h4 class="detail">バックアップから復元する</h4>
+  <div class="steps">
+    <div class="step">
+      <div class="step-badge">1</div>
+      <div class="step-body"><strong>設定画面（⚙）を開く</strong>画面右上の歯車ボタンをクリックします。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">2</div>
+      <div class="step-body"><strong>「📂 復元」ボタンをクリック</strong>ファイル選択ダイアログが開くので、以前にダウンロードしたバックアップファイル（.json）を選択します。</div>
+    </div>
+    <div class="step">
+      <div class="step-badge">3</div>
+      <div class="step-body"><strong>データが復元される</strong>バックアップに含まれるデータ・貸出履歴・設定がすべて復元されます。</div>
+    </div>
+  </div>
+  <div class="warn">復元を実行すると、現在のデータはバックアップの内容で上書きされます。復元前に現在のデータのバックアップを取っておくことをお勧めします。</div>
+  <div class="tip">パソコンの入替え時やアプリの再インストール時に、バックアップファイルがあればデータを引き継げます。定期的なバックアップをお勧めします。</div>
+
+  <h3 class="subsec" id="sec7-4">7-4 ファイルに保存</h3>
+  <p>設定画面の「📄 ファイルに保存」ボタンを使うと、データをPC上の任意の場所にJSONファイルとして保存できます。</p>
+  <p>ボタンを押すと保存先を選択するダイアログが表示されます。お好きなフォルダを選んで保存してください。</p>
+  <div class="tip">「バックアップ」と似ていますが、「ファイルに保存」はデータの保管や他のパソコンへの移動に便利です。保存したファイルは「復元」ボタンから読み込めます。</div>
+
+  <h3 class="subsec" id="sec7-5">7-5 別窓（ポップアウト）モード</h3>
+  <p>各タブのヘッダーにある「📤 別窓」ボタンをクリックすると、そのタブの内容だけを別ウィンドウで開けます。</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2;">
+    <li>マルチモニター環境で、片方にデータ、片方に印刷プレビューを表示する使い方が便利です。</li>
+    <li>親ウィンドウと別窓の間でデータは自動的に同期されます。</li>
+    <li>同じタブの別窓を複数開くことはできません（既に開いている場合はそのウィンドウがフォーカスされます）。</li>
+  </ul>
+
+  <h3 class="subsec" id="sec7-6">7-6 設定画面</h3>
+  <p>画面右上の「⚙」ボタンから設定画面を開けます。以下の項目が設定できます。</p>
+  <table>
+    <tr><th>カテゴリ</th><th>設定項目</th><th>説明</th></tr>
+    <tr><td>データ保存</td><td>自動保存</td><td>変更のたびにデータを自動保存します（初期値：ON）。OFFにすると手動保存ボタンが表示されます。</td></tr>
+    <tr><td>データ読み込み</td><td>最大列数</td><td>CSV/Excel読み込み時に許可する最大列数（初期値：30）。不要な列が多いファイルの読み込みを制限できます。</td></tr>
+    <tr><td>通知・確認</td><td>閉じる前の確認</td><td>アプリを閉じようとしたときに確認ダイアログを表示します（初期値：ON）。</td></tr>
+    <tr><td>バックアップ</td><td>バックアップ / 復元 / ファイルに保存</td><td>→ <a href="#sec7-3">7-3</a>、<a href="#sec7-4">7-4</a> を参照</td></tr>
+    <tr><td>外観</td><td>ダークモード</td><td>→ <a href="#sec7-1">7-1</a> を参照</td></tr>
+    <tr><td>ライセンス情報</td><td>使用ライブラリ</td><td>アプリが使用しているオープンソースライブラリとそのライセンスを確認できます。</td></tr>
+  </table>
+
+  <h3 class="subsec" id="sec7-7">7-7 データの自動保存</h3>
+  <p>本アプリはデータを自動的にパソコン内に保存します。インターネット接続は一切不要です。</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2;">
+    <li>データはアプリ内に自動保存されるため、アプリを閉じても次回起動時にデータが復元されます。</li>
+    <li>万が一に備え、定期的にバックアップ（→ <a href="#sec7-3" style="color:#2471a3;">7-3</a>）を取ることをお勧めします。</li>
+  </ul>
+  <div class="tip">自動保存がON（初期値）の場合、アプリを閉じてもデータは保持されます。再度アプリを開くと前回の状態が復元されます。</div>
+
+  <!-- ============================================================ -->
+  <!-- Section 8: よくある質問（Q&A） -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec8">8. よくある質問（Q&amp;A）</h2>
+
+  <div class="qa-item">
+    <div class="qa-q">Excelファイルを読み込んだら文字化けしました</div>
+    <div class="qa-a">Excelファイル（.xlsx/.xls）自体が文字化けする場合は、元のExcelファイルが正しく保存されているか確認してください。CSVやTXTファイルの場合は、文字コード（UTF-8/Shift-JIS）を自動判定して読み込みます。それでも文字化けする場合は、元ファイルをUTF-8形式で保存し直してから再度読み込んでください。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">バーコードが表示されない、またはエラーになります</div>
+    <div class="qa-a">Code128 / Code39バーコードは全角文字（日本語・全角英数字）には対応していません。バーコードにする列の値に全角文字が含まれていないか確認してください。日本語を含む場合はバーコード形式を「QRコード」に変更してください。また、値が空のセルがある場合もバーコードが生成されません。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">印刷するとラベルの位置がずれます</div>
+    <div class="qa-a">印刷ダイアログで、余白を「なし」または「最小」に、倍率を「100%」に設定してください。また、「ヘッダーとフッター」をオフにすることも有効です。それでも位置がずれる場合は、お使いのプリンタードライバーの設定でA4用紙の印刷可能領域を確認してください。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">アプリを閉じてしまいました。データは残っていますか？</div>
+    <div class="qa-a">自動保存がON（初期設定）であれば、データはパソコン内に保存されています。再度アプリを開くと前回のデータが自動的に復元されます。大切なデータは定期的にバックアップ（→ <a href="#sec7-3" style="color:#2471a3;">7-3</a>）を取ることをお勧めします。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">一部のラベルだけ印刷したいのですが</div>
+    <div class="qa-a">特定のラベルだけ印刷したい場合は、タブ2で不要な行を削除してから印刷し、後で元のファイルから読み直す方法をお試しください。または、あらかじめ印刷したいデータだけを抽出したExcel/CSVファイルを用意して読み込んでください。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">QRコードを印刷するにはどうすればいいですか？</div>
+    <div class="qa-a">タブ3の「バーコード形式」プルダウンから「QRコード」を選択してください。QRコードは日本語やURL、長い文字列にも対応しています。選択するとプレビューにQRコードが表示されます。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">ダークモードに切り替えるにはどうすればいいですか？</div>
+    <div class="qa-a">画面右上の「🌙」ボタンをクリックするとダークモードに切り替わります。また、設定画面（⚙）→「外観」→「ダークモード」のトグルからも切り替えられます。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">データのバックアップはどこからできますか？</div>
+    <div class="qa-a">画面右上の「⚙」ボタンから設定画面を開き、「バックアップ・復元」セクションの「💾 バックアップ」ボタンをクリックしてください。データ・貸出履歴・設定がすべて含まれたJSONファイルがダウンロードされます。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">カメラでバーコードが読み取れません</div>
+    <div class="qa-a">カメラへのアクセス許可が必要です。Windowsの「設定」→「プライバシー」→「カメラ」でアプリのカメラアクセスが許可されていることを確認してください。また、パソコンにWebカメラが接続されていることもご確認ください。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">貸出し機能を使うには何が必要ですか？</div>
+    <div class="qa-a">貸出し機能を使うには、まずタブ1でデータを読み込み、タブ3で「バーコードにする列」を設定する必要があります。バーコード列が未設定のままタブ4を開くと警告が表示されます。設定後、タブ4でバーコードをスキャンまたは手入力して貸出・返却を記録できます。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">ラベル用紙のサイズを変えたいのですが</div>
+    <div class="qa-a">タブ3の「ラベルプリセット」プルダウンから6種のプリセット（24面・44面・21面・12面・10面・65面）を選べます。「カスタムサイズ」を選ぶと列数・行数・ラベル幅を自由に設定できます。対応用紙の詳細は「<a href="#sec9" style="color:#2471a3;">9. 対応ラベル用紙</a>」をご覧ください。</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Section 9: 対応ラベル用紙 -->
+  <!-- ============================================================ -->
+  <h2 class="sec" id="sec9">9. 対応ラベル用紙</h2>
+  <p>本アプリは6種のラベルプリセットに対応しています。市販のラベル用紙を購入する際は、以下の表を参考にしてください。</p>
+
+  <table class="paper-table">
+    <tr>
+      <th>プリセット</th>
+      <th>1面サイズ</th>
+      <th>配列</th>
+      <th>対応用紙例</th>
+    </tr>
+    <tr>
+      <td><strong>A4 24面（標準）</strong></td>
+      <td>63.5 × 33.9 mm</td>
+      <td>3列 × 8行</td>
+      <td>エーワン 28315、コクヨ KPC-E1160、ヒサゴ OP870</td>
+    </tr>
+    <tr>
+      <td>A4 44面</td>
+      <td>48.3 × 25.4 mm</td>
+      <td>4列 × 11行</td>
+      <td>エーワン 28944</td>
+    </tr>
+    <tr>
+      <td>A4 21面</td>
+      <td>63.5 × 38.1 mm</td>
+      <td>3列 × 7行</td>
+      <td>エーワン 28366</td>
+    </tr>
+    <tr>
+      <td>A4 12面</td>
+      <td>84.7 × 42.3 mm</td>
+      <td>2列 × 6行</td>
+      <td>エーワン 28727</td>
+    </tr>
+    <tr>
+      <td>A4 10面</td>
+      <td>86.4 × 50.8 mm</td>
+      <td>2列 × 5行</td>
+      <td>エーワン 28731</td>
+    </tr>
+    <tr>
+      <td>A4 65面</td>
+      <td>38.1 × 21.2 mm</td>
+      <td>5列 × 13行</td>
+      <td>エーワン 28645</td>
+    </tr>
+  </table>
+
+  <p style="margin-top: 16px;">上記以外のサイズが必要な場合は、「カスタムサイズ」を選んで列数・行数・ラベル幅を直接指定できます。</p>
+
+  <div class="note" style="margin-top: 16px;">
+    <strong>ご注意：</strong>上記型番は参考例です。同じ面数・配列・1面サイズの規格であれば、他社製品でもご利用いただけます。購入前に必ず用紙パッケージの仕様（1面サイズ・配列）を確認してください。普通紙A4に印刷し、ハサミで切り取って使うこともできます。
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Footer -->
+  <!-- ============================================================ -->
+  <div class="footer">
+    <p>バーコード発行モジュール ユーザーマニュアル &nbsp;|&nbsp; Version 2.0 &nbsp;|&nbsp; &copy; 2026</p>
+    <p style="margin-top:4px;"><a href="#top" style="color:#2471a3; text-decoration:none;">ページ上部へ戻る</a></p>
+  </div>
+
+</div>
+</body>
+</html>

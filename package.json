@@ -1,0 +1,66 @@
+{
+  "name": "barcode-manager",
+  "version": "2.0.0",
+  "private": true,
+  "description": "バーコード・QRコードの生成・印刷・貸出管理ができるデスクトップアプリ",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:report": "npx playwright show-report",
+    "build:win": "electron-builder --win --x64 --arm64",
+    "build:win32": "electron-builder --win --ia32",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.barcode-manager.app",
+    "productName": "Barcode Manager",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "sw.js",
+      "manifest.json",
+      "sample_data.csv",
+      "lib/**/*",
+      "icons/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icons/icon-512.png",
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "icons/icon-512.png",
+      "category": "Office"
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1"
+  }
+}
