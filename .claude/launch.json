@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "barcode-app",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8765"],
+      "port": 8765,
+      "autoPort": true
+    },
+    {
+      "name": "local-research",
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/Volumes/AI_SSD/local-research/node_modules/vite/bin/vite.js", "--config", "/Volumes/AI_SSD/local-research/vite.config.ts", "--root", "/Volumes/AI_SSD/local-research", "--host", "localhost", "--port", "1420"],
+      "port": 1420
+    }
+  ]
+}

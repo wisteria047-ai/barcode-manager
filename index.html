@@ -1,0 +1,4286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a3a5c">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self';">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>バーコード管理ツール</title>
+<script src="lib/JsBarcode.all.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/qrcode.min.js"></script>
+<style>
+/* === RESET & BASE === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Yu Gothic', sans-serif;
+  background: #eef2f7;
+  color: #2c3e50;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* === HEADER === */
+.app-header {
+  background: linear-gradient(135deg, #1a3a5c 0%, #2471a3 100%);
+  color: white;
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  flex-wrap: wrap;
+}
+.app-header h1 { font-size: 19px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
+.header-badge {
+  background: rgba(255,255,255,0.2);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* === MAIN LAYOUT === */
+.main { max-width: 1120px; margin: 24px auto; padding: 0 20px 60px; }
+
+/* === STEP INDICATOR === */
+.steps-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  background: white;
+  border-radius: 10px;
+  padding: 14px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #999;
+  font-weight: 500;
+}
+.step-item.active { color: #1a3a5c; }
+.step-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: #ddd;
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.step-item.active .step-num { background: #2471a3; }
+.step-item.done .step-num { background: #27ae60; }
+.step-item.done { color: #27ae60; }
+.step-arrow { color: #ccc; font-size: 16px; }
+
+/* === CARDS === */
+.card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 22px;
+  border-bottom: 1px solid #eaecef;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #f8f9fa;
+}
+.card-header h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a3a5c;
+  flex: 1;
+  min-width: 160px;
+}
+.step-badge {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: #2471a3;
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.card-body { padding: 20px 22px; }
+
+/* === BUTTONS === */
+.btn {
+  padding: 9px 18px;
+  border: none; border-radius: 7px;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+  transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+  line-height: 1;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary   { background: #2471a3; color: white; }
+.btn-primary:hover:not(:disabled)   { background: #1a5580; }
+.btn-secondary { background: #ecf0f1; color: #2c3e50; border: 1px solid #ddd; }
+.btn-secondary:hover:not(:disabled) { background: #dde4e6; }
+.btn-danger    { background: #e74c3c; color: white; }
+.btn-danger:hover:not(:disabled)    { background: #c0392b; }
+.btn-success   { background: #27ae60; color: white; }
+.btn-success:hover:not(:disabled)   { background: #1e8449; }
+.btn-warning   { background: #e67e22; color: white; }
+.btn-warning:hover:not(:disabled)   { background: #ca6f1e; }
+.btn-sm  { padding: 6px 14px; font-size: 12px; }
+.btn-xs  { padding: 4px 10px; font-size: 11px; }
+.btn-outline { background: white; color: #2471a3; border: 1.5px solid #2471a3; }
+.btn-outline:hover:not(:disabled) { background: #eaf2f8; }
+
+/* === STEP 1 TWO-PANEL LAYOUT === */
+.import-or-manual {
+  display: grid;
+  grid-template-columns: 1fr 32px 1fr;
+  gap: 0;
+  align-items: start;
+}
+@media (max-width: 680px) {
+  .import-or-manual { grid-template-columns: 1fr; }
+  .or-divider { flex-direction: row; height: 32px; padding: 0; }
+  .or-divider::before, .or-divider::after { width: auto; height: 1px; flex: 1; }
+  .or-divider::before { margin-bottom: 0; margin-right: 8px; }
+  .or-divider::after  { margin-top: 0;  margin-left: 8px;  }
+  .card-header { gap: 6px; padding: 10px 14px; }
+  .card-header h2 { font-size: 14px; width: 100%; }
+  .card-header .btn-sm { font-size: 11px; padding: 4px 8px; }
+}
+.panel-title {
+  font-size: 13px; font-weight: 700; color: #1a3a5c;
+  margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+}
+.or-divider {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #bbb; font-size: 12px; font-weight: 600;
+  padding: 0 4px; min-height: 120px;
+}
+.or-divider::before, .or-divider::after {
+  content: ''; width: 1px; flex: 1; background: #e0e0e0;
+}
+.or-divider::before { margin-bottom: 8px; }
+.or-divider::after  { margin-top: 8px; }
+
+/* === IMPORT SECTION === */
+.drop-zone {
+  border: 2.5px dashed #b0bec5;
+  border-radius: 10px;
+  padding: 20px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #78909c;
+  background: #fafbfc;
+  display: block;
+  margin-bottom: 12px;
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color: #2471a3;
+  background: #e8f4fb;
+  color: #2471a3;
+}
+.drop-zone input { display: none; }
+.dz-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+.dz-text { font-size: 13px; font-weight: 600; }
+.dz-sub  { font-size: 11px; margin-top: 4px; opacity: 0.7; }
+.import-options { display: flex; flex-direction: column; gap: 10px; }
+.template-dl {
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ccc;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.template-dl-label { font-size: 12px; color: #555; font-weight: 600; }
+.template-dl-btns { display: flex; gap: 8px; }
+.template-dl-hint { font-size: 11px; color: #999; }
+.option-row { display: flex; align-items: center; gap: 8px; }
+.option-row label { font-size: 13px; color: #555; font-weight: 500; white-space: nowrap; }
+.option-select {
+  padding: 7px 10px;
+  border: 1.5px solid #ccc; border-radius: 6px;
+  font-size: 13px; background: white; flex: 1;
+}
+.check-label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; cursor: pointer; color: #444;
+  padding: 7px 12px;
+  background: #f5f6f7; border-radius: 6px;
+  border: 1.5px solid #e0e0e0; transition: all 0.15s;
+}
+.check-label:hover { background: #eaf0f6; border-color: #aed6f1; }
+.check-label input { cursor: pointer; width: 15px; height: 15px; }
+
+/* === MANUAL ENTRY === */
+.manual-panel { }
+.col-tag-list { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; min-height: 38px; }
+.col-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1.5px solid #85c1e9; border-radius: 7px;
+  background: #e8f4fb; overflow: hidden;
+}
+.col-tag input[type="text"] {
+  border: none; background: transparent; outline: none;
+  padding: 5px 8px; font-size: 12px; font-weight: 600;
+  color: #1a5276; width: 80px; min-width: 40px;
+}
+.col-tag-del {
+  background: none; border: none; cursor: pointer;
+  color: #85c1e9; font-size: 14px; padding: 0 6px; line-height: 1;
+  transition: color 0.1s;
+}
+.col-tag-del:hover { color: #e74c3c; }
+.manual-hint { font-size: 12px; color: #888; margin-bottom: 10px; line-height: 1.5; }
+
+/* === STATUS BAR === */
+.status-bar {
+  padding: 10px 16px; border-radius: 7px; font-size: 13px;
+  display: flex; align-items: center; gap: 8px; margin-top: 12px;
+}
+.status-bar.success { background: #d5f5e3; color: #1a7a40; border: 1px solid #82e0aa; }
+.status-bar.error   { background: #fde8e6; color: #b03a2e; border: 1px solid #f1948a; }
+.status-bar.info    { background: #e8f4fb; color: #1a5276; border: 1px solid #aed6f1; }
+.status-bar.warning { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
+
+/* === TOAST NOTIFICATIONS === */
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column-reverse; gap: 8px;
+  z-index: 1000; max-width: 420px; pointer-events: none;
+}
+.toast {
+  padding: 12px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15); pointer-events: auto;
+  animation: toast-in 0.3s ease-out;
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+}
+.toast.error   { background: #fde8e6; color: #b03a2e; border: 1px solid #f1948a; }
+.toast.warning { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
+.toast.info    { background: #e8f4fb; color: #1a5276; border: 1px solid #aed6f1; }
+.toast.success { background: #d5f5e3; color: #1a7a40; border: 1px solid #82e0aa; }
+.toast-code    { font-family: monospace; font-size: 11px; opacity: 0.6; }
+.toast-close   { margin-left: auto; cursor: pointer; opacity: 0.5; font-size: 16px; flex-shrink: 0; }
+.toast-close:hover { opacity: 1; }
+@keyframes toast-in { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* === COLUMN TABS === */
+.tabs-section {
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+.tabs-label { font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 500; }
+.col-tabs-wrap { display: flex; flex-wrap: wrap; gap: 7px; }
+.col-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 14px;
+  background: #e8f4fb; border: 1.5px solid #85c1e9;
+  border-radius: 20px; color: #1a5276;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  user-select: none;
+}
+.col-tab:hover { background: #aed6f1; border-color: #2471a3; }
+.tab-icon { font-size: 10px; opacity: 0.7; cursor: pointer; }
+.tab-del { color: #e74c3c; font-size: 13px; font-weight: bold; margin-left: 2px; opacity: 0; transition: opacity 0.15s; }
+.col-tab:hover .tab-del { opacity: 0.7; }
+.tab-del:hover { opacity: 1 !important; }
+
+.col-header { position: relative; }
+.col-header-del {
+  font-size: 11px; color: #e74c3c; cursor: pointer; margin-left: 4px;
+  opacity: 0; transition: opacity 0.15s; font-weight: bold; vertical-align: middle;
+}
+.col-header:hover .col-header-del { opacity: 0.6; }
+.col-header-del:hover { opacity: 1 !important; }
+
+.inline-col-rename {
+  width: 100%; min-width: 50px; padding: 2px 4px; font-size: 13px; font-weight: 600;
+  border: 2px solid #3498db; border-radius: 4px; background: #fff; color: #2c3e50;
+  outline: none; box-sizing: border-box;
+}
+
+/* === TABLE === */
+.table-toolbar {
+  display: flex; gap: 8px; margin-bottom: 12px;
+  flex-wrap: wrap; align-items: center;
+}
+.table-info { font-size: 12px; color: #888; }
+.per-page-selector {
+  margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 12px; color: #666;
+}
+.per-page-selector select {
+  padding: 3px 6px; border: 1px solid #ccc; border-radius: 5px; font-size: 12px; background: #fff; cursor: pointer;
+}
+.search-box { display: flex; align-items: center; }
+.search-input {
+  padding: 5px 10px; border: 1.5px solid #ccc; border-radius: 6px;
+  font-size: 12px; width: 170px; outline: none; transition: border-color 0.2s;
+}
+.search-input:focus { border-color: #2471a3; box-shadow: 0 0 0 2px rgba(36,113,163,0.15); }
+.col-header-name { cursor: pointer; user-select: none; }
+.sort-indicator { font-size: 10px; margin-left: 3px; opacity: 0.7; }
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 7px;
+  border: 1px solid #e0e4e8;
+  position: relative;
+}
+.table-wrap.scroll-hint::after {
+  content: '';
+  position: sticky;
+  float: right;
+  right: 0; top: 0;
+  width: 32px; height: 100%;
+  margin-top: -100%;
+  background: linear-gradient(to right, transparent, rgba(26,58,92,0.08));
+  pointer-events: none;
+  border-radius: 0 7px 7px 0;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#data-table { table-layout: auto; min-width: 600px; }
+thead th {
+  background: #1a3a5c; color: white;
+  padding: 7px 10px; text-align: left;
+  font-weight: 600; white-space: nowrap;
+}
+tbody td {
+  padding: 6px 10px; border-bottom: 1px solid #f0f2f5; vertical-align: middle;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+}
+tbody td:hover { white-space: normal; overflow: visible; word-break: break-all; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #f5f8fc; }
+.td-actions { display: flex; gap: 5px; }
+.edit-input {
+  padding: 5px 9px; border: 1.5px solid #2471a3; border-radius: 5px;
+  font-size: 12px; width: 100%; min-width: 80px; outline: none;
+}
+
+/* === EMPTY STATE === */
+.empty-state {
+  text-align: center; padding: 48px 20px; color: #aab7c0;
+}
+.empty-icon { font-size: 52px; display: block; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+.empty-state small { font-size: 12px; display: block; margin-top: 4px; }
+
+/* === PAGINATION === */
+.pagination { display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.pg-btn {
+  padding: 5px 12px; border: 1px solid #ccc; border-radius: 5px;
+  background: white; cursor: pointer; font-size: 12px; transition: all 0.1s;
+}
+.pg-btn:hover { background: #eef2f7; }
+.pg-btn.active { background: #2471a3; color: white; border-color: #2471a3; }
+.pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* === PRINT SETTINGS === */
+.print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 620px) { .print-grid { grid-template-columns: 1fr; } }
+.setting-group > .sg-label {
+  display: block; font-weight: 700; font-size: 13px; color: #444; margin-bottom: 8px;
+}
+.setting-select {
+  width: 100%; padding: 9px 12px; border: 1.5px solid #ccc;
+  border-radius: 7px; font-size: 13px; background: white;
+}
+.pill-checks { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill-check {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 14px; background: #f5f6f7;
+  border: 1.5px solid #ddd; border-radius: 20px;
+  cursor: pointer; font-size: 12px; transition: all 0.15s; user-select: none;
+}
+.pill-check input { cursor: pointer; }
+.pill-check.checked { background: #e8f4fb; border-color: #2471a3; color: #1a5276; font-weight: 600; }
+
+/* === MODAL === */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: white; border-radius: 12px; padding: 28px; width: 100%; max-width: 440px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+.modal h3 { font-size: 17px; color: #1a3a5c; margin-bottom: 6px; }
+.modal-sub { font-size: 12px; color: #888; margin-bottom: 16px; }
+.modal input[type="text"] {
+  width: 100%; padding: 10px 14px; border: 1.5px solid #ccc; border-radius: 7px;
+  font-size: 14px; margin-bottom: 18px; outline: none; transition: border-color 0.2s;
+}
+.modal input[type="text"]:focus { border-color: #2471a3; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* === PREVIEW MODAL === */
+.preview-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 600; display: flex; align-items: flex-start;
+  justify-content: center; padding: 20px; overflow-y: auto;
+}
+.preview-modal {
+  background: white; border-radius: 12px; width: 100%; max-width: 720px;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.3); overflow: hidden;
+  margin: auto;
+}
+.pv-header {
+  padding: 16px 22px; background: #1a3a5c; color: white;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pv-header h3 { font-size: 16px; }
+.pv-nav {
+  padding: 10px 22px; background: #2c3e50; color: white;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.pv-nav-info { font-size: 13px; }
+.pv-nav-sub  { font-size: 11px; color: #aaa; margin-left: auto; }
+.pv-body { padding: 16px; background: #607d8b; }
+.pv-footer {
+  padding: 14px 22px; background: #f8f9fa;
+  border-top: 1px solid #eee;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.pv-footer-info { font-size: 12px; color: #777; }
+
+/* === A4 SHEET PREVIEW === */
+.a4-sheet {
+  background: white;
+  width: 100%;
+  aspect-ratio: 210 / 297;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+  overflow: hidden;
+  padding: calc(13/297 * 100%) calc(7.2/210 * 100%);
+  display: flex;
+  flex-direction: column;
+}
+.label-grid-wrap { flex: 1; display: flex; flex-direction: column; }
+.label-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 0 calc(2.5/195.5 * 100%);
+  flex: 1;
+}
+.plabel {
+  border: 0.5px solid #bbb;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  overflow: hidden; padding: 2px 4px;
+  background: white;
+}
+.plabel.empty { background: #f7f8f9; }
+.plabel svg { max-width: 100%; height: 45%; display: block; }
+.plabel-texts {
+  font-size: clamp(6px, 0.8vw, 10px);
+  text-align: center; line-height: 1.25;
+  overflow: hidden; max-height: 48%;
+  word-break: break-all; width: 100%;
+}
+.plabel-texts div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* text-top layout: テキスト上→バーコード下 */
+.plabel.text-top { justify-content: flex-start; }
+.plabel.text-top .plabel-texts {
+  text-align: left; order: -1; margin-bottom: 1px;
+  max-height: 38%;
+}
+.plabel.text-top .plabel-texts div { text-align: left; }
+.plabel.text-top svg { margin-top: auto; height: 38%; }
+
+/* === PRINT === */
+#print-root { display: none; }
+@media print {
+  html, body { margin: 0; padding: 0; background: white !important; }
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; }
+  @page { size: A4 portrait; margin: 13mm 7.2mm; }
+  .print-sheet {
+    display: grid;
+    grid-template-columns: repeat(3, 63.5mm);
+    grid-auto-rows: 33.9mm;
+    column-gap: 2.5mm;
+    row-gap: 0;
+    page-break-after: always;
+  }
+  .print-sheet:last-child { page-break-after: avoid; }
+  .print-label {
+    width: 63.5mm; height: 33.9mm;
+    border: 0.3px solid #ccc;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden; padding: 2mm 3mm;
+    page-break-inside: avoid;
+  }
+  .print-label svg { max-width: 57mm; height: 14mm; display: block; }
+  .print-label-text {
+    font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    font-size: 7pt; text-align: center;
+    line-height: 1.25; word-break: break-all;
+    margin-top: 1mm; max-height: 17mm; overflow: hidden;
+  }
+  .print-label.empty-lbl { visibility: hidden; }
+  /* text-top layout for print: テキスト上→バーコード下 */
+  .print-label.text-top { justify-content: flex-start; }
+  .print-label.text-top .print-label-text {
+    text-align: left; order: -1;
+    margin-top: 0; margin-bottom: auto;
+    max-height: 16mm;
+  }
+  .print-label.text-top .print-label-text div { text-align: left; }
+  .print-label.text-top svg { margin-top: auto; max-height: 12mm; }
+}
+
+/* === TAB NAVIGATION === */
+.tab-nav {
+  display: flex;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.tab-btn {
+  flex: 1; padding: 14px 12px;
+  border: none; border-bottom: 3px solid transparent;
+  background: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #999;
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; transition: all 0.15s;
+  font-family: inherit;
+}
+.tab-btn:hover:not(:disabled) { background: #f5f8fc; color: #555; }
+.tab-btn.active { color: #2471a3; border-bottom-color: #2471a3; background: #f0f7ff; }
+.tab-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+.tab-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #ccc; color: white;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.15s;
+}
+.tab-btn.active   .tab-num { background: #2471a3; }
+.tab-btn.unlocked .tab-num { background: #7f8c8d; }
+.tab-btn.done     .tab-num { background: #27ae60; }
+
+/* TAB PANELS */
+.tab-panel         { display: none; }
+.tab-panel.active  { display: block; }
+
+/* === SELECTION CHECKBOX === */
+.chk-col { width: 36px; text-align: center; }
+.chk-col input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+.select-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; background: #e8f4fb; border-radius: 7px;
+  margin-bottom: 12px; font-size: 13px; color: #1a5276;
+  border: 1px solid #aed6f1;
+}
+.select-bar .sel-count { font-weight: 700; }
+
+/* === UNDO BAR === */
+.undo-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #2c3e50; color: white; padding: 12px 22px;
+  border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  display: flex; align-items: center; gap: 14px;
+  font-size: 14px; font-weight: 500; z-index: 900;
+  animation: undo-slide-up 0.25s ease-out;
+}
+@keyframes undo-slide-up { from { transform: translateX(-50%) translateY(30px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+.undo-bar .undo-btn {
+  background: #3498db; color: white; border: none; border-radius: 6px;
+  padding: 7px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: background 0.15s;
+}
+.undo-bar .undo-btn:hover { background: #2980b9; }
+.undo-bar .undo-timer {
+  width: 100%; height: 3px; background: rgba(255,255,255,0.2);
+  border-radius: 2px; position: absolute; bottom: 0; left: 0;
+  overflow: hidden; border-radius: 0 0 10px 10px;
+}
+.undo-bar .undo-timer-fill {
+  height: 100%; background: #3498db;
+  animation: undo-countdown linear forwards;
+}
+@keyframes undo-countdown { from { width: 100%; } to { width: 0%; } }
+
+/* === SAVE WARNING === */
+.save-warning {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: #e74c3c; color: white; padding: 10px 20px;
+  font-size: 14px; font-weight: 600; text-align: center;
+  z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.save-warning .sw-btn {
+  background: white; color: #c0392b; border: none; border-radius: 6px;
+  padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+
+/* === LENDING TAB === */
+.lending-scan-area {
+  background: #f0f7ff; border: 1.5px solid #aed6f1;
+  border-radius: 10px; padding: 20px; margin-bottom: 20px;
+}
+.scan-title { font-size: 14px; font-weight: 700; color: #1a3a5c; margin-bottom: 12px; }
+.scan-row { display: flex; gap: 10px; align-items: center; }
+.scan-input {
+  flex: 1; padding: 12px 16px; border: 2px solid #2471a3; border-radius: 8px;
+  font-size: 18px; font-family: 'Courier New', monospace; letter-spacing: 1px;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.scan-input:focus { border-color: #1a5580; box-shadow: 0 0 0 3px rgba(36,113,163,0.2); }
+.item-info-card {
+  background: white; border: 1.5px solid #e0e4e8; border-radius: 8px;
+  padding: 16px 20px; margin-top: 16px; margin-bottom: 16px;
+}
+.item-info-card.item-available { border-left: 4px solid #27ae60; }
+.item-info-card.item-lent { border-left: 4px solid #e67e22; }
+.item-info-card.item-overdue { border-left: 4px solid #e74c3c; }
+.item-info-title { font-size: 13px; font-weight: 700; color: #1a3a5c; margin-bottom: 8px; }
+.item-info-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px 16px;
+}
+.item-info-field { font-size: 13px; color: #555; }
+.item-info-field strong { color: #1a3a5c; font-weight: 600; }
+.item-status-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; margin-top: 8px;
+}
+.badge-available { background: #d5f5e3; color: #1a7a40; }
+.badge-lent { background: #fef3e2; color: #e67e22; }
+.badge-overdue { background: #fde8e6; color: #e74c3c; }
+.badge-returned { background: #e8f4fb; color: #1a5276; }
+.lending-form, .return-form {
+  background: #f8f9fa; border: 1px solid #eaecef; border-radius: 8px;
+  padding: 18px 20px; margin-top: 12px;
+}
+.lending-form-title { font-size: 14px; font-weight: 700; color: #1a3a5c; margin-bottom: 14px; }
+.lending-form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+@media (max-width: 620px) { .lending-form-grid { grid-template-columns: 1fr; } }
+.lf-group label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+.lf-group input[type="text"], .lf-group input[type="date"] {
+  width: 100%; padding: 9px 12px; border: 1.5px solid #ccc; border-radius: 7px;
+  font-size: 14px; outline: none; transition: border-color 0.2s; font-family: inherit;
+}
+.lf-group input:focus { border-color: #2471a3; }
+.lending-form-actions { display: flex; gap: 10px; margin-top: 16px; }
+.return-info {
+  background: #fef9e7; border: 1px solid #f9e79f; border-radius: 7px;
+  padding: 12px 16px; margin-bottom: 14px; font-size: 13px; color: #7d6608; line-height: 1.7;
+}
+.lending-view-toggle { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.lending-view-toggle .btn.view-active { background: #2471a3; color: white; }
+.lending-overdue-badge {
+  margin-left: auto; background: #fde8e6; color: #e74c3c;
+  font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 12px;
+  border: 1px solid #f1948a; animation: overdue-pulse 2s ease-in-out infinite;
+}
+@keyframes overdue-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+.lending-row-overdue td { background: #fef0ee !important; }
+.lending-row-overdue:hover td { background: #fde8e6 !important; }
+.disambig-list { list-style: none; margin: 12px 0; }
+.disambig-list li {
+  padding: 10px 14px; border: 1px solid #e0e4e8; border-radius: 7px;
+  margin-bottom: 6px; cursor: pointer; transition: all 0.15s; font-size: 13px;
+}
+.disambig-list li:hover { background: #e8f4fb; border-color: #2471a3; }
+.lending-success {
+  background: #d5f5e3; border: 1.5px solid #82e0aa; border-radius: 8px;
+  padding: 14px 18px; font-size: 14px; color: #1a7a40; font-weight: 600;
+  margin-top: 12px; animation: success-fade-in 0.3s ease-out;
+}
+@keyframes success-fade-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; } }
+
+/* === GARBLE RECOVERY BAR === */
+.garble-bar {
+  margin-top: 12px; padding: 10px 16px;
+  background: #fef9e7; border: 1.5px solid #f9e79f;
+  border-radius: 8px; display: flex;
+  align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 600; color: #7d6608;
+  animation: garble-fade-in 0.3s ease-out;
+}
+@keyframes garble-fade-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* === SETTINGS PANEL === */
+.settings-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.settings-modal {
+  background: white; border-radius: 12px; width: 100%; max-width: 520px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25); overflow: hidden;
+}
+.settings-header {
+  padding: 16px 22px; background: #1a3a5c; color: white;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.settings-header h3 { font-size: 16px; font-weight: 700; }
+.settings-body { padding: 24px 22px; max-height: 65vh; overflow-y: auto; }
+.settings-section { margin-bottom: 22px; }
+.settings-section:last-child { margin-bottom: 0; }
+.settings-section-title {
+  font-size: 13px; font-weight: 700; color: #1a3a5c;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  padding-bottom: 6px; border-bottom: 1px solid #eee;
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; gap: 12px;
+}
+.settings-row + .settings-row { border-top: 1px solid #f0f2f5; }
+.settings-row-label { font-size: 13px; color: #444; font-weight: 500; flex: 1; }
+.settings-row-desc { font-size: 11px; color: #999; margin-top: 2px; }
+.settings-footer {
+  padding: 14px 22px; background: #f8f9fa; border-top: 1px solid #eee;
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+/* Toggle switch */
+.toggle-switch {
+  position: relative; width: 44px; height: 24px; flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #ccc; border-radius: 24px; transition: 0.2s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; height: 18px; width: 18px;
+  left: 3px; bottom: 3px; background: white; border-radius: 50%;
+  transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch input:checked + .toggle-slider { background: #2471a3; }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+/* Settings gear button */
+.settings-gear {
+  background: rgba(255,255,255,0.2); border: none; border-radius: 6px;
+  color: white; cursor: pointer; padding: 5px 10px; font-size: 14px;
+  transition: background 0.15s; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.settings-gear:hover { background: rgba(255,255,255,0.35); }
+/* Manual save indicator */
+.save-indicator {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #888; padding: 3px 10px;
+  background: #f5f6f7; border-radius: 12px;
+  transition: all 0.2s;
+}
+.save-indicator.unsaved { background: #fef3e2; color: #e67e22; font-weight: 600; }
+.save-indicator.saving { background: #e8f4fb; color: #2471a3; }
+.save-indicator.saved { background: #d5f5e3; color: #27ae60; }
+
+/* === DARK MODE === */
+:root {
+  --bg-body: #eef2f7; --bg-card: white; --bg-card-header: #f8f9fa;
+  --text-main: #2c3e50; --text-sub: #888; --text-link: #2471a3;
+  --border-light: #e0e4e8; --border-card: #eaecef;
+  --bg-input: white; --bg-hover: #f5f8fc; --bg-tag: #e8f4fb;
+  --shadow-card: 0 1px 6px rgba(0,0,0,0.07);
+}
+body.dark {
+  --bg-body: #1a1d23; --bg-card: #23272e; --bg-card-header: #2a2e36;
+  --text-main: #d4d8de; --text-sub: #8a8f98; --text-link: #5ba3d9;
+  --border-light: #363a42; --border-card: #363a42;
+  --bg-input: #2a2e36; --bg-hover: #2e333b; --bg-tag: #2a3a4a;
+  --shadow-card: 0 1px 6px rgba(0,0,0,0.3);
+}
+body.dark { background: var(--bg-body); color: var(--text-main); }
+body.dark .card { background: var(--bg-card); box-shadow: var(--shadow-card); }
+body.dark .card-header { background: var(--bg-card-header); border-color: var(--border-card); }
+body.dark .card-header h2 { color: var(--text-main); }
+body.dark .tab-nav { background: var(--bg-card); box-shadow: var(--shadow-card); }
+body.dark .tab-btn { color: var(--text-sub); }
+body.dark .tab-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-main); }
+body.dark .tab-btn.active { background: #1a2a3a; color: #5ba3d9; }
+body.dark .drop-zone { background: var(--bg-card-header); border-color: #4a4e56; color: var(--text-sub); }
+body.dark .drop-zone:hover, body.dark .drop-zone.over { border-color: #5ba3d9; background: #1a2a3a; color: #5ba3d9; }
+body.dark table thead th { background: #2a3444; }
+body.dark table tbody td { border-color: var(--border-light); color: var(--text-main); }
+body.dark table tbody tr:hover td { background: var(--bg-hover); }
+body.dark .table-wrap { border-color: var(--border-light); }
+body.dark .table-wrap.scroll-hint::after { background: linear-gradient(to right, transparent, rgba(0,0,0,0.3)); }
+body.dark .search-input { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+body.dark .setting-select { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+body.dark .option-select { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+body.dark .btn-secondary { background: #2e333b; color: var(--text-main); border-color: var(--border-light); }
+body.dark .btn-secondary:hover:not(:disabled) { background: #363b44; }
+body.dark .pill-check { background: var(--bg-card-header); border-color: var(--border-light); color: var(--text-sub); }
+body.dark .pill-check.checked { background: #1a2a3a; border-color: #5ba3d9; color: #5ba3d9; }
+body.dark .check-label { background: var(--bg-card-header); border-color: var(--border-light); color: var(--text-main); }
+body.dark .col-tag { border-color: #3a5a7a; background: #1a2a3a; }
+body.dark .col-tag input { color: #aac8e8; }
+body.dark .modal { background: var(--bg-card); }
+body.dark .modal h3 { color: var(--text-main); }
+body.dark .modal input[type="text"] { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+body.dark .settings-modal { background: var(--bg-card); }
+body.dark .settings-body { background: var(--bg-card); }
+body.dark .settings-row { border-color: var(--border-light); }
+body.dark .settings-row-label { color: var(--text-main); }
+body.dark .settings-row-desc { color: var(--text-sub); }
+body.dark .settings-section-title { color: #5ba3d9; border-color: var(--border-light); }
+body.dark .settings-footer { background: var(--bg-card-header); border-color: var(--border-light); }
+body.dark .lending-scan-area { background: #1a2a3a; border-color: #3a5a7a; }
+body.dark .scan-title { color: #5ba3d9; }
+body.dark .scan-input { background: var(--bg-input); border-color: #3a5a7a; color: var(--text-main); }
+body.dark .item-info-card { background: var(--bg-card); border-color: var(--border-light); }
+body.dark .lending-form, body.dark .return-form { background: var(--bg-card-header); border-color: var(--border-light); }
+body.dark .lf-group label { color: var(--text-sub); }
+body.dark .lf-group input { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+body.dark .pg-btn { background: var(--bg-card); border-color: var(--border-light); color: var(--text-main); }
+body.dark .pg-btn:hover { background: var(--bg-hover); }
+body.dark .status-bar.info { background: #1a2a3a; color: #5ba3d9; border-color: #3a5a7a; }
+body.dark .status-bar.success { background: #1a2e1a; color: #5bc95b; border-color: #2a5a2a; }
+body.dark .manual-hint { color: var(--text-sub); }
+body.dark .per-page-selector select { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+body.dark .or-divider { color: var(--text-sub); }
+body.dark .or-divider::before, body.dark .or-divider::after { background: var(--border-light); }
+body.dark .preview-modal { background: var(--bg-card); }
+body.dark .pv-footer { background: var(--bg-card-header); border-color: var(--border-light); }
+body.dark .template-dl { border-color: var(--border-light); }
+body.dark .edit-input { background: var(--bg-input); color: var(--text-main); }
+body.dark .panel-title { color: #5ba3d9; }
+body.dark .select-bar { background: #1a2a3a; border-color: #3a5a7a; color: #5ba3d9; }
+body.dark .return-info { background: #2a2a1a; border-color: #5a5a2a; color: #c8c878; }
+body.dark .empty-state { color: var(--text-sub); }
+body.dark .table-info { color: var(--text-sub); }
+body.dark .text-sm { color: var(--text-sub); }
+.dark-toggle-btn {
+  background: rgba(255,255,255,0.2); border: none; border-radius: 6px;
+  color: white; cursor: pointer; padding: 5px 10px; font-size: 14px;
+  transition: background 0.15s; font-family: inherit;
+}
+.dark-toggle-btn:hover { background: rgba(255,255,255,0.35); }
+
+/* === CAMERA SCANNER === */
+.camera-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+  z-index: 700; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.camera-container {
+  position: relative; width: 100%; max-width: 480px;
+  border-radius: 12px; overflow: hidden; background: #000;
+}
+.camera-container video {
+  width: 100%; height: auto; display: block;
+}
+.camera-scan-line {
+  position: absolute; left: 10%; right: 10%; top: 50%;
+  height: 2px; background: #e74c3c;
+  box-shadow: 0 0 8px rgba(231,76,60,0.6);
+  animation: scan-line 2s ease-in-out infinite;
+}
+@keyframes scan-line { 0%,100% { top: 30%; } 50% { top: 70%; } }
+.camera-header {
+  color: white; text-align: center; margin-bottom: 16px;
+  font-size: 16px; font-weight: 600;
+}
+.camera-footer {
+  margin-top: 16px; display: flex; gap: 12px;
+}
+.camera-hint {
+  color: #aaa; font-size: 12px; text-align: center; margin-top: 10px;
+}
+.scan-camera-btn {
+  background: none; border: 1.5px solid #2471a3; border-radius: 7px;
+  color: #2471a3; cursor: pointer; padding: 10px 14px; font-size: 14px;
+  transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.scan-camera-btn:hover { background: #e8f4fb; }
+body.dark .scan-camera-btn { border-color: #5ba3d9; color: #5ba3d9; }
+body.dark .scan-camera-btn:hover { background: #1a2a3a; }
+
+/* === PRINT GUIDE MODAL === */
+.print-guide-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 650; display: flex; align-items: center;
+  justify-content: center; padding: 20px;
+}
+.print-guide-modal {
+  background: white; border-radius: 12px; padding: 28px;
+  width: 100%; max-width: 540px; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+body.dark .print-guide-modal { background: var(--bg-card); }
+.print-guide-modal h3 { font-size: 17px; color: #1a3a5c; margin-bottom: 16px; }
+body.dark .print-guide-modal h3 { color: #5ba3d9; }
+.print-guide-list {
+  list-style: none; margin: 0 0 18px; padding: 0;
+}
+.print-guide-list li {
+  padding: 10px 14px; border: 1px solid #e0e4e8; border-radius: 7px;
+  margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 10px;
+}
+body.dark .print-guide-list li { border-color: var(--border-light); color: var(--text-main); }
+.print-guide-list li .guide-num {
+  width: 26px; height: 26px; border-radius: 50%; background: #2471a3;
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.print-guide-footer { display: flex; justify-content: space-between; gap: 10px; }
+
+/* === LABEL SIZE PRESETS === */
+.label-preset-select {
+  width: 100%; padding: 9px 12px; border: 1.5px solid #ccc;
+  border-radius: 7px; font-size: 13px; background: white; margin-bottom: 8px;
+}
+body.dark .label-preset-select { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+.label-custom-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  margin-top: 8px; padding: 10px; background: #f5f6f7;
+  border-radius: 7px; border: 1px solid #e0e0e0;
+}
+body.dark .label-custom-grid { background: var(--bg-card-header); border-color: var(--border-light); }
+.label-custom-grid label { font-size: 11px; color: #555; font-weight: 600; display: block; margin-bottom: 3px; }
+body.dark .label-custom-grid label { color: var(--text-sub); }
+.label-custom-grid input {
+  width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 5px;
+  font-size: 13px; text-align: center;
+}
+body.dark .label-custom-grid input { background: var(--bg-input); border-color: var(--border-light); color: var(--text-main); }
+
+/* === BACKUP SECTION === */
+.backup-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* === UTILS === */
+.hidden { display: none !important; }
+.ml-auto { margin-left: auto; }
+.text-sm { font-size: 12px; color: #888; }
+
+/* === POP-OUT BUTTON (uses <a> tag for popup-blocker resistance) === */
+.popout-btn {
+  background: none; border: 1px solid #ccd; border-radius: 5px;
+  cursor: pointer; padding: 4px 10px; font-size: 11px;
+  color: #666; transition: all 0.15s; display: inline-flex;
+  align-items: center; gap: 4px; white-space: nowrap;
+  font-family: inherit; text-decoration: none;
+}
+.popout-btn:hover { background: #e8f4fb; border-color: #2471a3; color: #1a5276; }
+
+/* === DETACHED PANEL MODE === */
+.detached-banner {
+  display: none;
+  background: linear-gradient(135deg, #1a3a5c 0%, #2471a3 100%);
+  color: white; padding: 10px 20px;
+  align-items: center; gap: 12px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.detached-banner .db-title { flex: 1; }
+.detached-banner .db-sync {
+  font-size: 11px; opacity: 0.7; font-weight: 400;
+  padding: 3px 10px; background: rgba(255,255,255,0.15);
+  border-radius: 10px;
+}
+.detached-banner .db-sync.synced { opacity: 1; background: rgba(39,174,96,0.4); }
+
+body.detached-mode .app-header { display: none; }
+body.detached-mode .tab-nav { display: none; }
+body.detached-mode .main { margin-top: 0; padding-top: 10px; }
+body.detached-mode .detached-banner { display: flex; }
+body.detached-mode .tab-panel { display: none !important; }
+body.detached-mode .tab-panel.detached-target { display: block !important; }
+body.detached-mode .popout-btn { display: none; }
+</style>
+</head>
+<body>
+
+<!-- PRINT ROOT -->
+<div id="print-root"></div>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- DETACHED PANEL BANNER (別ウィンドウ時のみ表示) -->
+<div class="detached-banner" id="detached-banner">
+  <span>📌</span>
+  <span class="db-title" id="db-title"></span>
+  <span class="db-sync" id="db-sync">🔄 データ自動同期中</span>
+</div>
+
+<!-- HEADER -->
+<header class="app-header">
+  <h1>📦 バーコード管理ツール</h1>
+  <span class="header-badge">Code128 / Code39 / QR</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <span id="save-indicator" class="save-indicator hidden"></span>
+    <button class="dark-toggle-btn" onclick="toggleDarkMode()" title="ダーク/ライトモード切替" id="dark-toggle-btn" aria-label="ダークモード切替">🌙</button>
+    <button class="settings-gear" onclick="openSettings()" title="設定" aria-label="設定を開く">⚙</button>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- TAB NAVIGATION -->
+  <nav class="tab-nav" role="tablist" aria-label="メインナビゲーション">
+    <button class="tab-btn active" id="tb-import" role="tab" aria-selected="true" aria-controls="tab-import" onclick="switchTab('tab-import')">
+      <span class="tab-num" id="tn-import">1</span>データの準備
+    </button>
+    <button class="tab-btn" id="tb-data" role="tab" aria-selected="false" aria-controls="tab-data" disabled onclick="switchTab('tab-data')">
+      <span class="tab-num" id="tn-data">2</span>データの確認・編集
+    </button>
+    <button class="tab-btn" id="tb-print" role="tab" aria-selected="false" aria-controls="tab-print" disabled onclick="switchTab('tab-print')">
+      <span class="tab-num" id="tn-print">3</span>バーコード・印刷
+    </button>
+    <button class="tab-btn" id="tb-lending" role="tab" aria-selected="false" aria-controls="tab-lending" disabled onclick="switchTab('tab-lending')">
+      <span class="tab-num" id="tn-lending">4</span>貸出し・返却
+    </button>
+  </nav>
+
+  <!-- TAB 1: IMPORT OR MANUAL -->
+  <div class="tab-panel active" id="tab-import" role="tabpanel" aria-labelledby="tb-import">
+  <div class="card" id="card-import">
+    <div class="card-header">
+      <div class="step-badge">1</div>
+      <h2>データの準備</h2>
+      <a class="popout-btn" href="#panel-import" target="bc-panel-import" onclick="onPopOut(event,'panel-import')" title="別ウィンドウで開く" aria-label="取込パネルを別窓で開く">📤 別窓</a>
+    </div>
+    <div class="card-body">
+      <div class="import-or-manual">
+
+        <!-- LEFT: FILE IMPORT -->
+        <div class="import-panel">
+          <div class="panel-title">📁 ファイルから読み込む</div>
+          <label class="drop-zone" id="drop-zone">
+            <input type="file" id="file-input" accept=".csv,.txt,.xlsx,.xls">
+            <span class="dz-icon">📂</span>
+            <span class="dz-text">クリックまたはドロップ</span>
+            <span class="dz-sub">Excel (.xlsx) / CSV / TXT 対応</span>
+          </label>
+          <div class="import-options">
+            <label class="check-label">
+              <input type="checkbox" id="has-header" checked>
+              1行目を列名として使用する
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="loadSampleData()">
+              📋 サンプルデータで試す
+            </button>
+          </div>
+          <div class="template-dl">
+            <span class="template-dl-label">📎 入力用テンプレートをダウンロード：</span>
+            <div class="template-dl-btns">
+              <button class="btn btn-outline btn-sm" onclick="downloadTemplateCSV()">CSV形式</button>
+              <button class="btn btn-outline btn-sm" onclick="downloadTemplateXLSX()">Excel形式</button>
+            </div>
+            <span class="template-dl-hint">テンプレートを編集して読み込めば、すぐにデータ登録できます</span>
+          </div>
+          <!-- 文字化け復旧バー（自動判定失敗時のみ表示） -->
+          <div class="garble-bar hidden" id="garble-bar">
+            <span>⚠ 文字化けしていませんか？</span>
+            <button class="btn btn-warning btn-sm" id="garble-fix-btn">🔄 文字化けを直す</button>
+            <button class="btn btn-secondary btn-xs" onclick="dismissGarbleBar()">問題ない</button>
+          </div>
+        </div>
+
+        <!-- DIVIDER -->
+        <div class="or-divider">または</div>
+
+        <!-- RIGHT: MANUAL ENTRY -->
+        <div class="manual-panel">
+          <div class="panel-title">✏️ 手入力で始める</div>
+          <p class="manual-hint">
+            ファイルがなくても大丈夫です。<br>
+            使いたい列名を設定して、そのままデータを入力できます。
+          </p>
+          <div class="col-tag-list" id="manual-col-list"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="addManualCol()">＋ 列を追加</button>
+            <button class="btn btn-primary btn-sm" onclick="startManualEntry()">この列で入力を開始 →</button>
+          </div>
+        </div>
+
+      </div>
+      <div id="import-status" class="status-bar hidden"></div>
+    </div>
+  </div>
+
+  </div><!-- /tab-import -->
+
+  <!-- TAB 2: DATA MANAGEMENT -->
+  <div class="tab-panel" id="tab-data" role="tabpanel" aria-labelledby="tb-data">
+  <div class="card" id="card-data">
+    <div class="card-header">
+      <div class="step-badge">2</div>
+      <h2>データの確認・編集</h2>
+      <span id="fname-badge" class="text-sm"></span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <a class="popout-btn" href="#panel-data" target="bc-panel-data" onclick="onPopOut(event,'panel-data')" title="別ウィンドウで開く" aria-label="データパネルを別窓で開く">📤 別窓</a>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ CSVで書き出す</button>
+        <button class="btn btn-secondary btn-sm" onclick="goToImport()">🔄 データを読み直す</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <!-- Table Toolbar -->
+      <div class="table-toolbar">
+        <button class="btn btn-primary btn-sm" onclick="addRow()">＋ 行を追加</button>
+        <button class="btn btn-secondary btn-sm" onclick="addColumn()">＋ 列を追加</button>
+        <div class="search-box">
+          <input type="text" id="table-search" class="search-input"
+            placeholder="🔍 検索..." oninput="onSearch(this.value)" autocomplete="off">
+        </div>
+        <span class="table-info" id="row-count-info"></span>
+        <label class="per-page-selector">
+          <select id="per-page-select" onchange="changePerPage(this.value)">
+            <option value="20">20件</option>
+            <option value="50">50件</option>
+            <option value="100">100件</option>
+            <option value="200">200件</option>
+            <option value="500">500件</option>
+            <option value="1000">1000件</option>
+          </select>
+          <span>/ ページ</span>
+        </label>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  </div><!-- /tab-data -->
+
+  <!-- TAB 3: PRINT -->
+  <div class="tab-panel" id="tab-print" role="tabpanel" aria-labelledby="tb-print">
+  <div class="card" id="card-print">
+    <div class="card-header">
+      <div class="step-badge">3</div>
+      <h2>バーコード設定・印刷</h2>
+      <a class="popout-btn" style="margin-left:auto;" href="#panel-print" target="bc-panel-print" onclick="onPopOut(event,'panel-print')" title="別ウィンドウで開く" aria-label="印刷パネルを別窓で開く">📤 別窓</a>
+    </div>
+    <div class="card-body">
+      <div class="print-grid">
+        <div class="setting-group">
+          <span class="sg-label">バーコードにする列:</span>
+          <select class="setting-select" id="bc-col-select">
+            <option value="">-- 列を選択 --</option>
+          </select>
+          <p class="text-sm" style="margin-top:6px;" id="bc-col-hint">選択した列の値がバーコードになります</p>
+        </div>
+        <div class="setting-group">
+          <span class="sg-label">バーコード形式:</span>
+          <select class="setting-select" id="bc-format-select">
+            <option value="CODE128">Code128（英数字・記号すべて対応）</option>
+            <option value="CODE39">Code39（英大文字・数字・一部記号）</option>
+            <option value="QR">QRコード（日本語・URL・長文対応）</option>
+          </select>
+          <p class="text-sm" style="margin-top:6px;" id="bc-format-hint">Code128: ASCII全文字対応　/　Code39: A-Z 0-9 - . $ / + % スペース　/　QR: 任意のテキスト</p>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid #eee;">
+        <div class="print-grid">
+          <div class="setting-group">
+            <span class="sg-label">ラベル用紙:</span>
+            <select class="label-preset-select" id="label-preset-select" onchange="changeLabelPreset(this.value)">
+              <option value="a4-24">A4 24面（63.5×33.9mm / 3列×8行）— 標準</option>
+              <option value="a4-44">A4 44面（48.3×25.4mm / 4列×11行）</option>
+              <option value="a4-21">A4 21面（63.5×38.1mm / 3列×7行）</option>
+              <option value="a4-12">A4 12面（84.7×42.3mm / 2列×6行）</option>
+              <option value="a4-10">A4 10面（86.4×50.8mm / 2列×5行）</option>
+              <option value="a4-65">A4 65面（38.1×21.2mm / 5列×13行）</option>
+              <option value="custom">カスタムサイズ</option>
+            </select>
+            <div class="label-custom-grid hidden" id="label-custom-grid">
+              <div><label>列数</label><input type="number" id="custom-cols" min="1" max="6" value="3" onchange="applyCustomLabel()"></div>
+              <div><label>行数</label><input type="number" id="custom-rows" min="1" max="20" value="8" onchange="applyCustomLabel()"></div>
+              <div><label>ラベル幅mm</label><input type="number" id="custom-w" min="10" max="200" value="63.5" step="0.1" onchange="applyCustomLabel()"></div>
+            </div>
+          </div>
+          <div class="setting-group">
+            <span class="sg-label">ラベルレイアウト:</span>
+            <select class="setting-select" id="label-layout-select">
+              <option value="bc-top">バーコード上 → テキスト下（標準）</option>
+              <option value="text-top">テキスト上 → バーコード下</option>
+            </select>
+            <p class="text-sm" style="margin-top:6px;" id="layout-hint">標準：バーコードを上に、テキスト情報を下に配置</p>
+          </div>
+          <div class="setting-group">
+            <span class="sg-label">ラベルに印刷する項目（複数選択可）:</span>
+            <div class="pill-checks" id="print-col-checks"></div>
+            <p class="text-sm" style="margin-top:6px;" id="print-col-hint">バーコードの下に表示するテキスト情報を選びます</p>
+          </div>
+          <div class="setting-group">
+            <span class="sg-label">テキスト表示設定:</span>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label class="check-label" style="margin:0;">
+                <input type="checkbox" id="bc-show-value" onchange="S.bcShowValue=this.checked; saveToStorage();">
+                バーコード値をテキストでも表示する
+              </label>
+              <div class="option-row">
+                <label for="label-font-size" style="font-size:13px;color:#555;font-weight:500;white-space:nowrap;">文字サイズ:</label>
+                <select id="label-font-size" class="option-select" onchange="S.labelFontSize=this.value; saveToStorage();">
+                  <option value="auto">自動（推奨）</option>
+                  <option value="small">小（6pt）</option>
+                  <option value="medium">中（7pt）</option>
+                  <option value="large">大（8pt）</option>
+                </select>
+              </div>
+              <div class="option-row">
+                <label for="label-max-lines" style="font-size:13px;color:#555;font-weight:500;white-space:nowrap;">最大行数:</label>
+                <select id="label-max-lines" class="option-select" onchange="S.labelMaxLines=parseInt(this.value); saveToStorage();">
+                  <option value="1">1行</option>
+                  <option value="2">2行</option>
+                  <option value="3" selected>3行</option>
+                  <option value="4">4行</option>
+                  <option value="5">5行</option>
+                </select>
+              </div>
+            </div>
+            <p class="text-sm" style="margin-top:6px;">行数を増やすとバーコード部分が小さくなります</p>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="openPreview()">
+          🔍 印刷プレビューを表示
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="switchTab('tab-data')" style="margin-left:4px;">
+          ← データ編集に戻る
+        </button>
+        <span class="text-sm" id="print-row-info"></span>
+      </div>
+      <div style="margin-top:18px;background:#f0f7ff;border:1px solid #aed6f1;border-radius:8px;padding:14px 18px;font-size:12px;color:#1a5276;line-height:1.7;" id="print-guide-inline">
+        <strong>🖨 印刷時の設定ガイド</strong><br>
+        ・用紙サイズ：<strong>A4</strong>　・余白：<strong>なし</strong>（または最小）　・倍率：<strong>100%</strong><br>
+        ・「ヘッダーとフッター」を<strong>オフ</strong>にしてください（Chrome：詳細設定 → ヘッダーとフッターのチェックを外す）
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /tab-print -->
+
+  <!-- TAB 4: LENDING/RETURN -->
+  <div class="tab-panel" id="tab-lending" role="tabpanel" aria-labelledby="tb-lending">
+  <div class="card" id="card-lending">
+    <div class="card-header">
+      <div class="step-badge">4</div>
+      <h2>貸出し・返却管理</h2>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <a class="popout-btn" href="#panel-lending" target="bc-panel-lending" onclick="onPopOut(event,'panel-lending')" title="別ウィンドウで開く" aria-label="貸出パネルを別窓で開く">📤 別窓</a>
+        <button class="btn btn-secondary btn-sm" onclick="exportLendingCSV()">⬇ 履歴CSV</button>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <!-- SCAN AREA -->
+      <div class="lending-scan-area" id="lending-scan-area">
+        <div class="scan-title">📷 バーコードをスキャン（または手入力）</div>
+        <div class="scan-row">
+          <input type="text" id="lending-barcode-input" class="scan-input"
+                 placeholder="バーコードをスキャンまたは入力してEnter" autocomplete="off">
+          <button class="btn btn-primary" onclick="lookupBarcode()">検索</button>
+          <button class="scan-camera-btn" onclick="openCameraScanner()" title="カメラでスキャン" id="camera-scan-btn">📸 カメラ</button>
+        </div>
+        <p class="text-sm" style="margin-top:8px;">💡 USBバーコードリーダーを接続すると、スキャンした値が自動入力されます（キーボードとして認識）</p>
+        <div id="lending-bc-warning" class="status-bar info hidden" style="margin-top:10px;">
+          ⚠ バーコード列が未設定です。「③ バーコード設定」で列を選択してください。
+        </div>
+      </div>
+
+      <!-- ITEM RESULT (hidden until scan) -->
+      <div class="hidden" id="lending-item-result">
+        <div class="item-info-card" id="item-info-card"></div>
+        <div class="lending-form hidden" id="lending-form">
+          <div class="lending-form-title">📋 貸出し情報の入力</div>
+          <div class="lending-form-grid">
+            <div class="lf-group">
+              <label for="lend-borrower">貸出先（氏名・部署など）</label>
+              <input type="text" id="lend-borrower" placeholder="例: 田中太郎" maxlength="100">
+            </div>
+            <div class="lf-group">
+              <label for="lend-date">貸出日</label>
+              <input type="date" id="lend-date">
+            </div>
+            <div class="lf-group">
+              <label for="lend-due-date">返却予定日</label>
+              <input type="date" id="lend-due-date">
+            </div>
+          </div>
+          <div class="lending-form-actions">
+            <button class="btn btn-success" onclick="submitLending()">✅ 貸出しを記録する</button>
+            <button class="btn btn-secondary" onclick="cancelLendingForm()">キャンセル</button>
+          </div>
+        </div>
+        <div class="return-form hidden" id="return-form">
+          <div class="lending-form-title">🔄 返却処理</div>
+          <div class="return-info" id="return-info"></div>
+          <div class="lf-group">
+            <label for="return-date">返却日</label>
+            <input type="date" id="return-date">
+          </div>
+          <div class="lending-form-actions">
+            <button class="btn btn-success" onclick="submitReturn()">✅ 返却を記録する</button>
+            <button class="btn btn-secondary" onclick="cancelLendingForm()">キャンセル</button>
+          </div>
+        </div>
+      </div>
+
+      <hr style="margin:24px 0;border:none;border-top:1px solid #eee;">
+
+      <!-- VIEW TOGGLE -->
+      <div class="lending-view-toggle">
+        <button class="btn btn-sm view-active" id="view-current-btn" onclick="switchLendingView('current')">📋 現在の貸出し</button>
+        <button class="btn btn-sm btn-secondary" id="view-history-btn" onclick="switchLendingView('history')">📜 履歴</button>
+        <span class="lending-overdue-badge hidden" id="overdue-badge">⚠ 延滞: <span id="overdue-count">0</span>件</span>
+      </div>
+
+      <!-- CURRENT LENDING LIST -->
+      <div id="lending-current-view">
+        <div class="table-wrap" style="margin-top:12px;">
+          <table><thead id="lending-current-thead"></thead><tbody id="lending-current-tbody"></tbody></table>
+        </div>
+        <div class="pagination" id="lending-current-pagination"></div>
+      </div>
+
+      <!-- HISTORY VIEW -->
+      <div id="lending-history-view" class="hidden">
+        <div class="table-wrap" style="margin-top:12px;">
+          <table><thead id="lending-history-thead"></thead><tbody id="lending-history-tbody"></tbody></table>
+        </div>
+        <div class="pagination" id="lending-history-pagination"></div>
+      </div>
+
+    </div>
+  </div>
+  </div><!-- /tab-lending -->
+
+</main>
+
+<!-- RENAME MODAL -->
+<div class="overlay hidden" id="rename-overlay" onclick="handleOverlayClick(event,'rename-overlay')">
+  <div class="modal">
+    <h3>✏️ 列名の変更</h3>
+    <div class="modal-sub" id="rename-hint"></div>
+    <input type="text" id="rename-input" placeholder="新しい列名を入力してください" maxlength="60">
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRename()">キャンセル</button>
+      <button class="btn btn-primary" onclick="applyRename()">変更する</button>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div class="preview-overlay hidden" id="preview-overlay" onclick="handleOverlayClick(event,'preview-overlay')">
+  <div class="preview-modal">
+    <div class="pv-header">
+      <h3 id="pv-title">🖨 印刷プレビュー — A4 / 24面ラベル（3列×8行）</h3>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white;border:none;" onclick="closePreview()">✕ 閉じる</button>
+    </div>
+    <div class="pv-nav">
+      <button class="btn btn-sm btn-secondary" id="pv-prev" onclick="pvChangePage(-1)">◀ 前ページ</button>
+      <span class="pv-nav-info" id="pv-page-info">1 / 1 ページ</span>
+      <button class="btn btn-sm btn-secondary" id="pv-next" onclick="pvChangePage(1)">次ページ ▶</button>
+      <span class="pv-nav-sub" id="pv-sub-info"></span>
+    </div>
+    <div class="pv-body">
+      <div class="a4-sheet">
+        <div class="label-grid-wrap">
+          <div class="label-grid" id="label-grid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="pv-footer">
+      <span class="pv-footer-info" id="pv-footer-info"></span>
+      <button class="btn btn-success" onclick="doPrint()">🖨 印刷する</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="settings-overlay hidden" id="settings-overlay" onclick="if(event.target.id==='settings-overlay')closeSettings()">
+  <div class="settings-modal">
+    <div class="settings-header">
+      <h3>⚙ 設定</h3>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white;border:none;" onclick="closeSettings()">✕ 閉じる</button>
+    </div>
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <div class="settings-section-title">💾 データ保存</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">自動保存</div>
+            <div class="settings-row-desc">データを変更するたびに自動的に保存します</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-autosave" checked onchange="toggleAutoSave(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row" id="manual-save-row" style="display:none;">
+          <div>
+            <div class="settings-row-label">手動保存の操作</div>
+            <div class="settings-row-desc">自動保存をOFFにした場合、手動で保存してください</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="manualSave()">💾 いま保存する</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">📊 データ読み込み</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">最大列数</div>
+            <div class="settings-row-desc">CSV/Excelの読み込み時、この列数を超えた列はカットされます（1〜100）</div>
+          </div>
+          <input type="number" id="setting-max-columns" min="1" max="100" value="30"
+            style="width:70px;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:15px;text-align:center;"
+            onchange="changeMaxColumns(this.value)">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">🔔 通知・確認</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">閉じる前の確認ダイアログ</div>
+            <div class="settings-row-desc">未保存の変更がある場合、ブラウザを閉じる前に確認を表示します</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-confirm-close" checked onchange="toggleConfirmClose(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">📁 バックアップ・復元</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">全データをバックアップ</div>
+            <div class="settings-row-desc">データ・貸出履歴・設定をまとめて1つのファイルに保存します</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="exportFullBackup()">💾 バックアップ</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">バックアップから復元</div>
+            <div class="settings-row-desc">以前のバックアップファイルを読み込んでデータを復元します</div>
+          </div>
+          <div>
+            <label class="btn btn-warning btn-sm" style="cursor:pointer;">
+              📂 復元
+              <input type="file" accept=".json" style="display:none;" onchange="importFullBackup(this.files[0])">
+            </label>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">データをファイルに保存</div>
+            <div class="settings-row-desc">データをPC上のファイルとして保存し、いつでも確認できるようにします</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="saveDataToFile()">📄 ファイルに保存</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">📋 貸出設定</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">操作者名</div>
+            <div class="settings-row-desc">貸出・返却の操作者として記録されます</div>
+          </div>
+          <input type="text" id="setting-operator-name" placeholder="例: 田中"
+            style="width:120px;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:15px;"
+            onchange="changeOperatorName(this.value)">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">貸出先を必須にする</div>
+            <div class="settings-row-desc">OFFにすると貸出先が未入力でも処理できます</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-require-borrower" checked onchange="toggleLendingRequireBorrower(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">日付を必須にする</div>
+            <div class="settings-row-desc">OFFにすると貸出日・返却予定日・返却日が未入力でも処理できます</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-require-dates" checked onchange="toggleLendingRequireDates(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">🎨 外観</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">ダークモード</div>
+            <div class="settings-row-desc">暗い配色に切り替えます（目の負担を軽減）</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-dark-mode" onchange="toggleDarkMode()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">📜 ライセンス情報</div>
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+          <div class="settings-row-desc" style="font-size:12px;line-height:1.6;">
+            このアプリは以下のオープンソースライブラリを使用しています：<br>
+            <strong>JsBarcode v3.11.6</strong> — MIT License © Johan Lindell<br>
+            <strong>QRCode.js</strong> — MIT License © Kazuhiko Arase<br>
+            <strong>SheetJS (xlsx.js) v0.18.5</strong> — Apache License 2.0 © SheetJS LLC
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="settings-footer">
+      <button class="btn btn-secondary" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMERA SCANNER MODAL -->
+<div class="camera-overlay hidden" id="camera-overlay">
+  <div class="camera-header">📸 カメラでバーコード / QRコードをスキャン</div>
+  <div class="camera-container">
+    <video id="camera-video" autoplay playsinline muted></video>
+    <div class="camera-scan-line"></div>
+  </div>
+  <div class="camera-hint">バーコードまたはQRコードをカメラに映してください</div>
+  <div class="camera-footer">
+    <button class="btn btn-danger" onclick="closeCameraScanner()">✕ 閉じる</button>
+  </div>
+</div>
+
+<!-- PRINT GUIDE MODAL -->
+<div class="print-guide-overlay hidden" id="print-guide-overlay" onclick="if(event.target.id==='print-guide-overlay')closePrintGuide()">
+  <div class="print-guide-modal">
+    <h3>🖨 印刷前の確認事項</h3>
+    <ul class="print-guide-list">
+      <li><span class="guide-num">1</span>用紙サイズを <strong>A4</strong> に設定してください</li>
+      <li><span class="guide-num">2</span>余白を <strong>なし</strong>（または最小）にしてください</li>
+      <li><span class="guide-num">3</span>倍率を <strong>100%</strong> に設定してください</li>
+      <li><span class="guide-num">4</span><strong>ヘッダーとフッター</strong> のチェックを外してください</li>
+      <li><span class="guide-num">5</span>「背景のグラフィック」にチェックが入っていることを確認してください</li>
+    </ul>
+    <div class="print-guide-footer">
+      <button class="btn btn-secondary" onclick="closePrintGuide()">キャンセル</button>
+      <button class="btn btn-success" onclick="closePrintGuide(); doPrintDirect();">✅ 確認しました — 印刷する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+// ============================================================
+//  ERROR CODE SYSTEM
+// ============================================================
+const APP_ERRORS = {
+  E001: { type: 'error',   msg: '列名を1つ以上入力してください' },
+  E002: { type: 'error',   msg: '列数の上限（{0} 列）に達しています。設定画面（⚙）で上限を変更できます。' },
+  E003: { type: 'error',   msg: 'エクスポートするデータがありません' },
+  E004: { type: 'error',   msg: '列名を入力してください' },
+  E005: { type: 'error',   msg: 'バーコードにする列を選択してください' },
+  E006: { type: 'error',   msg: 'データがありません' },
+  E007: { type: 'error',   msg: 'バーコード列が設定されていません。「③ バーコード設定」タブでバーコードにする列を選択してください。' },
+  E008: { type: 'error',   msg: '貸出先を入力してください' },
+  E009: { type: 'error',   msg: '貸出日を入力してください' },
+  E010: { type: 'error',   msg: '返却予定日を入力してください' },
+  E011: { type: 'error',   msg: '返却日を入力してください' },
+  E012: { type: 'error',   msg: '対象の貸出しレコードが見つかりません' },
+  E013: { type: 'error',   msg: 'エクスポートする貸出し履歴がありません' },
+  W001: { type: 'warning', msg: 'バーコード変換エラーがあります' },
+  I001: { type: 'info',    msg: '重複するバーコード値が {0} 件あります' },
+};
+
+function showToast(type, msg, code) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  const codeHtml = code ? `<span class="toast-code">[${code}]</span> ` : '';
+  toast.innerHTML = codeHtml + esc(msg) + ' <span class="toast-close" onclick="this.parentElement.remove()">\u00d7</span>';
+  toast.onclick = (e) => { if (!e.target.classList.contains('toast-close')) toast.remove(); };
+  container.appendChild(toast);
+  setTimeout(() => { if (toast.parentElement) toast.remove(); }, 6000);
+  if (code) console.warn(`[${code}] ${msg}`);
+}
+
+function showAppError(code, ...args) {
+  const entry = APP_ERRORS[code];
+  if (!entry) { showToast('error', 'Unknown error: ' + code, code); return; }
+  let msg = entry.msg;
+  args.forEach((a, i) => { msg = msg.replace(`{${i}}`, a); });
+  showToast(entry.type, msg, code);
+}
+
+const S = {
+  cols: [],       // [{id, orig, name}]
+  rows: [],       // [{_id, col_0:…, col_1:…, …}]
+  nextId: 1,
+  editing: null,  // row _id being edited
+  renaming: null, // col id being renamed
+  page: 1,
+  perPage: 20,
+  pvPage: 0,
+  bcCol: '',
+  bcFormat: 'CODE128',   // CODE128 or CODE39
+  bcShowValue: false,    // バーコード下に値テキストを表示
+  printCols: [],
+  labelLayout: 'bc-top', // bc-top: バーコード上→テキスト下 / text-top: テキスト上→バーコード下
+  labelFontSize: 'auto', // auto, small, medium, large
+  labelMaxLines: 3,      // テキスト最大行数
+  labelPreset: 'a4-24',  // ラベル用紙プリセット
+  selected: new Set(),   // 印刷対象として選択された行の _id
+  searchQuery: '',       // テーブル検索クエリ（揮発性）
+  sortCol: null,         // ソート対象列ID（揮発性）
+  sortDir: 'asc'         // ソート方向 'asc' or 'desc'（揮発性）
+};
+
+// ============================================================
+//  SETTINGS STATE
+// ============================================================
+const SETTINGS_KEY = 'barcode-app-settings';
+const AppSettings = {
+  autoSave: true,
+  confirmClose: true,
+  maxColumns: 30,
+  operatorName: '',
+  lendingRequireBorrower: true,
+  lendingRequireDates: true
+};
+
+let hasUnsavedChanges = false; // 未保存の変更があるか
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (typeof data.autoSave === 'boolean') AppSettings.autoSave = data.autoSave;
+    if (typeof data.confirmClose === 'boolean') AppSettings.confirmClose = data.confirmClose;
+    if (typeof data.maxColumns === 'number' && data.maxColumns >= 1) AppSettings.maxColumns = data.maxColumns;
+    if (typeof data.darkMode === 'boolean') AppSettings.darkMode = data.darkMode;
+    if (typeof data.operatorName === 'string') AppSettings.operatorName = data.operatorName;
+    if (typeof data.lendingRequireBorrower === 'boolean') AppSettings.lendingRequireBorrower = data.lendingRequireBorrower;
+    if (typeof data.lendingRequireDates === 'boolean') AppSettings.lendingRequireDates = data.lendingRequireDates;
+  } catch(e) { /* ignore */ }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(AppSettings));
+  } catch(e) { /* ignore */ }
+}
+
+function openSettings() {
+  document.getElementById('setting-autosave').checked = AppSettings.autoSave;
+  document.getElementById('setting-confirm-close').checked = AppSettings.confirmClose;
+  document.getElementById('manual-save-row').style.display = AppSettings.autoSave ? 'none' : 'flex';
+  document.getElementById('setting-max-columns').value = AppSettings.maxColumns;
+  document.getElementById('setting-dark-mode').checked = !!AppSettings.darkMode;
+  document.getElementById('setting-operator-name').value = AppSettings.operatorName || '';
+  document.getElementById('setting-require-borrower').checked = AppSettings.lendingRequireBorrower;
+  document.getElementById('setting-require-dates').checked = AppSettings.lendingRequireDates;
+  document.getElementById('settings-overlay').classList.remove('hidden');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.add('hidden');
+}
+
+function toggleAutoSave(checked) {
+  AppSettings.autoSave = checked;
+  document.getElementById('manual-save-row').style.display = checked ? 'none' : 'flex';
+  saveSettings();
+  updateSaveIndicator();
+  if (checked && hasUnsavedChanges) {
+    // 自動保存ON復帰：未保存があれば即保存
+    doSaveToStorage();
+  }
+}
+
+function toggleConfirmClose(checked) {
+  AppSettings.confirmClose = checked;
+  saveSettings();
+}
+
+function changeMaxColumns(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n < 1) return;
+  AppSettings.maxColumns = Math.max(1, Math.min(100, n));
+  document.getElementById('setting-max-columns').value = AppSettings.maxColumns;
+  saveSettings();
+}
+
+function manualSave() {
+  doSaveToStorage();
+}
+
+function changeOperatorName(val) {
+  AppSettings.operatorName = val.trim();
+  saveSettings();
+}
+
+function toggleLendingRequireBorrower(checked) {
+  AppSettings.lendingRequireBorrower = checked;
+  saveSettings();
+}
+
+function toggleLendingRequireDates(checked) {
+  AppSettings.lendingRequireDates = checked;
+  saveSettings();
+}
+
+function updateSaveIndicator() {
+  const el = document.getElementById('save-indicator');
+  if (!el) return;
+  if (AppSettings.autoSave) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  if (hasUnsavedChanges) {
+    el.className = 'save-indicator unsaved';
+    el.innerHTML = '⚠ 未保存の変更あり';
+  } else {
+    el.className = 'save-indicator saved';
+    el.innerHTML = '✅ 保存済み';
+    // 3秒後にフェード
+    setTimeout(() => {
+      if (!hasUnsavedChanges && el.classList.contains('saved')) {
+        el.className = 'save-indicator';
+        el.innerHTML = '💾 手動保存モード';
+      }
+    }, 3000);
+  }
+}
+
+// Load settings on startup
+loadSettings();
+
+// ============================================================
+//  INDEXEDDB STORAGE LAYER
+// ============================================================
+const IDB_NAME = 'barcode-app-db';
+const IDB_VERSION = 1;
+let _idb = null;
+let _useIDB = false;
+
+function openDB() {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('main')) db.createObjectStore('main');
+        if (!db.objectStoreNames.contains('lending')) db.createObjectStore('lending');
+      };
+      req.onsuccess = (e) => {
+        _idb = e.target.result;
+        _useIDB = true;
+        console.log('IndexedDB: 接続成功');
+        resolve(true);
+      };
+      req.onerror = () => {
+        console.warn('IndexedDB: 使用不可 → localStorageフォールバック');
+        _useIDB = false;
+        resolve(false);
+      };
+    } catch(e) {
+      console.warn('IndexedDB: 非対応環境 → localStorageフォールバック');
+      _useIDB = false;
+      resolve(false);
+    }
+  });
+}
+
+function idbPut(store, key, value) {
+  return new Promise((resolve, reject) => {
+    if (!_idb) { reject(new Error('DB not open')); return; }
+    const tx = _idb.transaction(store, 'readwrite');
+    const st = tx.objectStore(store);
+    const req = st.put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbGet(store, key) {
+  return new Promise((resolve, reject) => {
+    if (!_idb) { reject(new Error('DB not open')); return; }
+    const tx = _idb.transaction(store, 'readonly');
+    const st = tx.objectStore(store);
+    const req = st.get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbDelete(store, key) {
+  return new Promise((resolve, reject) => {
+    if (!_idb) { reject(new Error('DB not open')); return; }
+    const tx = _idb.transaction(store, 'readwrite');
+    const st = tx.objectStore(store);
+    const req = st.delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ============================================================
+//  BROADCAST CHANNEL (cross-window sync)
+// ============================================================
+let _syncChannel = null;
+try { _syncChannel = new BroadcastChannel('barcode-app-sync'); }
+catch(e) { /* BroadcastChannel非対応 */ }
+
+function broadcastSync(type) {
+  if (_syncChannel) {
+    try { _syncChannel.postMessage({ type: type, ts: Date.now() }); }
+    catch(e) { /* ignore */ }
+  }
+}
+
+// ============================================================
+//  SAVE DEBOUNCE
+// ============================================================
+let _saveTimers = { main: null, lending: null };
+
+function _scheduleSave(type) {
+  if (_saveTimers[type]) clearTimeout(_saveTimers[type]);
+  _saveTimers[type] = setTimeout(() => {
+    _saveTimers[type] = null;
+    if (type === 'main') _flushMainSave();
+    else _flushLendingSave();
+  }, 300);
+}
+
+function _flushMainSave() {
+  const data = {
+    cols: S.cols, rows: S.rows, nextId: S.nextId,
+    bcCol: S.bcCol, bcFormat: S.bcFormat, bcShowValue: S.bcShowValue,
+    printCols: S.printCols, labelLayout: S.labelLayout,
+    labelFontSize: S.labelFontSize, labelMaxLines: S.labelMaxLines,
+    perPage: S.perPage, labelPreset: S.labelPreset || 'a4-24',
+    savedAt: new Date().toISOString()
+  };
+  if (_useIDB) {
+    idbPut('main', STORAGE_KEY, data).then(() => {
+      broadcastSync('main');
+    }).catch(e => {
+      console.warn('IDB main save failed, trying localStorage:', e.message);
+      _lsFallbackSaveMain(data);
+    });
+  } else {
+    _lsFallbackSaveMain(data);
+  }
+}
+
+function _lsFallbackSaveMain(data) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+  catch(e) { console.warn('localStorage main save failed:', e.message); showSaveWarning(); }
+}
+
+function _flushLendingSave() {
+  const data = {
+    records: LS.records, nextLendId: LS.nextLendId, savedAt: new Date().toISOString()
+  };
+  if (_useIDB) {
+    idbPut('lending', LENDING_KEY, data).then(() => {
+      broadcastSync('lending');
+    }).catch(e => {
+      console.warn('IDB lending save failed, trying localStorage:', e.message);
+      _lsFallbackSaveLending(data);
+    });
+  } else {
+    _lsFallbackSaveLending(data);
+  }
+}
+
+function _lsFallbackSaveLending(data) {
+  try { localStorage.setItem(LENDING_KEY, JSON.stringify(data)); }
+  catch(e) { console.warn('localStorage lending save failed:', e.message); }
+}
+
+// ============================================================
+//  LENDING STATE
+// ============================================================
+const LENDING_KEY = 'barcode-app-lending';
+const LS = {
+  records: [],
+  nextLendId: 1,
+  lendPage: 1,
+  histPage: 1,
+  lendPerPage: 15,
+  viewMode: 'current',
+  pendingBarcode: null,
+  pendingRowId: null
+};
+
+function saveLendingToStorage() {
+  if (AppSettings.autoSave) { doSaveLendingToStorage(); }
+  else { hasUnsavedChanges = true; updateSaveIndicator(); }
+}
+
+function doSaveLendingToStorage() {
+  _scheduleSave('lending');
+}
+
+async function loadLendingFromStorage() {
+  try {
+    // マイグレーション: localStorageにデータがあればIDBに移行
+    const lsRaw = localStorage.getItem(LENDING_KEY);
+    if (lsRaw) {
+      const data = JSON.parse(lsRaw);
+      LS.records = data.records || [];
+      LS.nextLendId = data.nextLendId || 1;
+      if (_useIDB) {
+        await idbPut('lending', LENDING_KEY, data);
+        localStorage.removeItem(LENDING_KEY);
+        console.log('貸出しデータをlocalStorage → IndexedDBに移行しました');
+      }
+      return;
+    }
+    // 通常パス: IDBから読み込み
+    if (_useIDB) {
+      const data = await idbGet('lending', LENDING_KEY);
+      if (data) {
+        LS.records = data.records || [];
+        LS.nextLendId = data.nextLendId || 1;
+      }
+    }
+  } catch(e) { console.warn('貸出しデータの復元に失敗:', e.message); }
+}
+
+function clearLendingStorage() {
+  if (_useIDB) { idbDelete('lending', LENDING_KEY).catch(() => {}); }
+  localStorage.removeItem(LENDING_KEY);
+}
+
+// ============================================================
+//  LOCAL STORAGE PERSISTENCE
+// ============================================================
+const STORAGE_KEY = 'barcode-app-data';
+
+function doSaveToStorage() {
+  _scheduleSave('main');
+  _scheduleSave('lending');
+  hasUnsavedChanges = false;
+  dismissSaveWarning();
+  updateSaveIndicator();
+}
+
+function saveToStorage() {
+  if (AppSettings.autoSave) {
+    doSaveToStorage();
+  } else {
+    // 手動保存モード：変更フラグを立てるだけ
+    hasUnsavedChanges = true;
+    updateSaveIndicator();
+  }
+}
+
+function showSaveWarning() {
+  if (document.getElementById('save-warning')) return; // 既に表示中
+  const bar = document.createElement('div');
+  bar.className = 'save-warning';
+  bar.id = 'save-warning';
+  bar.innerHTML = `
+    <span>⚠️ データの自動保存に失敗しました — ブラウザを閉じるとデータが消える可能性があります</span>
+    <button class="sw-btn" onclick="exportCSV()">💾 CSVで書き出す</button>
+    <button class="sw-btn" onclick="dismissSaveWarning()" aria-label="警告を閉じる">✕</button>
+  `;
+  document.body.appendChild(bar);
+}
+
+function dismissSaveWarning() {
+  const w = document.getElementById('save-warning');
+  if (w) w.remove();
+}
+
+async function loadFromStorage() {
+  try {
+    let data = null;
+
+    // マイグレーション: localStorageにデータがあればIDBに移行
+    const lsRaw = localStorage.getItem(STORAGE_KEY);
+    if (lsRaw) {
+      data = JSON.parse(lsRaw);
+      if (_useIDB && data && data.cols && data.cols.length) {
+        await idbPut('main', STORAGE_KEY, data);
+        localStorage.removeItem(STORAGE_KEY);
+        console.log('メインデータをlocalStorage → IndexedDBに移行しました');
+      }
+    }
+
+    // localStorageにデータがなければIDBから読み込み
+    if (!data && _useIDB) {
+      data = await idbGet('main', STORAGE_KEY);
+    }
+
+    if (!data || !data.cols || !data.cols.length) return false;
+
+    S.cols = data.cols;
+    S.rows = data.rows || [];
+    S.nextId = data.nextId || (S.rows.length ? Math.max(...S.rows.map(r => r._id)) + 1 : 1);
+    S.bcCol = data.bcCol || '';
+    S.bcFormat = data.bcFormat || 'CODE128';
+    S.bcShowValue = data.bcShowValue || false;
+    S.printCols = data.printCols || [];
+    S.labelLayout = data.labelLayout || 'bc-top';
+    S.labelFontSize = data.labelFontSize || 'auto';
+    S.labelMaxLines = data.labelMaxLines || 3;
+    S.labelPreset = data.labelPreset || 'a4-24';
+    if (data.perPage && [20,50,100,200,500,1000].includes(data.perPage)) S.perPage = data.perPage;
+    S.page = 1;
+    S.editing = null;
+    S.selected = new Set();
+
+    // 復元の日時を表示
+    const savedAt = data.savedAt ? new Date(data.savedAt) : null;
+    const timeStr = savedAt
+      ? `${savedAt.getMonth()+1}/${savedAt.getDate()} ${savedAt.getHours()}:${String(savedAt.getMinutes()).padStart(2,'0')}`
+      : '';
+
+    await loadLendingFromStorage();
+    const storageType = _useIDB ? 'IndexedDB' : 'localStorage';
+    document.getElementById('fname-badge').textContent = '自動復元データ';
+    showStatus('info', `💾 前回のデータを復元しました（${S.rows.length} 行、${S.cols.length} 列、${storageType}）${timeStr ? ' — 保存日時: ' + timeStr : ''}`);
+    unlockDataTabs();
+    renderAll();
+    switchTab('tab-data');
+    return true;
+  } catch(e) {
+    console.warn('データ復元に失敗:', e.message);
+    return false;
+  }
+}
+
+function clearStorage() {
+  if (_useIDB) { idbDelete('main', STORAGE_KEY).catch(() => {}); }
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+// ============================================================
+//  CSV PARSING
+// ============================================================
+function parseCSV(text) {
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trimEnd();
+  return text.split('\n').filter(l => l.trim()).map(parseLine);
+}
+
+function parseLine(line) {
+  const fields = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) { fields.push(cur); cur = ''; }
+    else cur += c;
+  }
+  fields.push(cur);
+  return fields;
+}
+
+function readFileAsText(file, enc) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = reject;
+    r.readAsText(file, enc);
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = reject;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// 文字化け検知: 置換文字 (U+FFFD) や連続する半角カナ的パターンを検出
+function looksGarbled(text) {
+  // U+FFFD (replacement character) が多い → ほぼ確実に文字化け
+  const replacementCount = (text.match(/\uFFFD/g) || []).length;
+  if (replacementCount > 2) return true;
+
+  // サンプルとして先頭2000文字を調べる
+  const sample = text.substring(0, 2000);
+
+  // Shift-JISをUTF-8として読んだ時の典型パターン:
+  // 繧・縺・繝 など CJK統合漢字の特定範囲が連続
+  const garbleChars = (sample.match(/[\u7e67\u7e70\u7e4d\u7e1d\u7e01\u7e2b\u7e3e\u7e55\u7e41\u7e4a\u7e2e\u7e31\u7e61\u7e6d\u7e26\u7e15\u7e0a\u7e09\u7e1b\u7dda\u7dbb\u7e46\u7e56]/g) || []).length;
+  if (garbleChars > 5) return true;
+
+  // 連続する制御文字パターン
+  const controlSeqs = (sample.match(/[\x80-\x9f]/g) || []).length;
+  if (controlSeqs > 10) return true;
+
+  return false;
+}
+
+let lastLoadedFile = null; // 再読み込み用に保持
+
+function dismissGarbleBar() {
+  document.getElementById('garble-bar').classList.add('hidden');
+}
+
+// ============================================================
+//  LOAD FILE (CSV or Excel)
+// ============================================================
+async function loadCSVFile(file) {
+  lastLoadedFile = file;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const hasHdr = document.getElementById('has-header').checked;
+
+  // Excel
+  if (ext === 'xlsx' || ext === 'xls') {
+    try {
+      const buf = await readFileAsArrayBuffer(file);
+      const wb  = XLSX.read(buf, { type: 'array' });
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const parsed = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (!parsed.length) { showStatus('error', 'Excelにデータがありません'); return; }
+      dismissGarbleBar();
+      ingestData(parsed, hasHdr, file.name);
+    } catch(e) { showStatus('error', 'Excelの読み込みに失敗しました: ' + e.message); }
+    return;
+  }
+
+  // CSV / TXT — 自動判定: UTF-8 → Shift-JIS の順で試行
+  await loadCSVWithAutoDetect(file, hasHdr);
+}
+
+// エンコーディング候補リスト（試行順）
+const ENCODING_LIST = ['UTF-8', 'Shift_JIS'];
+
+async function loadCSVWithAutoDetect(file, hasHdr) {
+  let bestText = null;
+  let bestEncIdx = 0;
+
+  for (let i = 0; i < ENCODING_LIST.length; i++) {
+    try {
+      let text = await readFileAsText(file, ENCODING_LIST[i]);
+      // BOM除去
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+      if (!looksGarbled(text)) {
+        bestText = text;
+        bestEncIdx = i;
+        break;
+      }
+      // 最初の候補は保持（全部文字化けなら最初のを使う）
+      if (i === 0) { bestText = text; bestEncIdx = 0; }
+    } catch(e) { /* 次の候補へ */ }
+  }
+
+  if (!bestText) {
+    showStatus('error', 'ファイルの読み込みに失敗しました');
+    return;
+  }
+
+  let parsed;
+  try { parsed = parseCSV(bestText); }
+  catch(e) { showStatus('error', 'CSVの解析に失敗しました: ' + e.message); return; }
+  if (!parsed.length) { showStatus('error', 'CSVにデータがありません'); return; }
+
+  ingestData(parsed, hasHdr, file.name);
+
+  // 読み込み後に文字化けチェック（最終的に選んだテキストで再チェック）
+  if (looksGarbled(bestText)) {
+    showGarbleBar(file, hasHdr, bestEncIdx);
+  } else {
+    dismissGarbleBar();
+    // 別のエンコーディングで読めた場合は文字化け復旧ボタンも用意
+    // （自動判定が100%正確ではないため）
+    showGarbleBarSilent(file, hasHdr, bestEncIdx);
+  }
+}
+
+function showGarbleBar(file, hasHdr, currentEncIdx) {
+  const bar = document.getElementById('garble-bar');
+  bar.classList.remove('hidden');
+  const btn = document.getElementById('garble-fix-btn');
+  btn.onclick = () => retryWithNextEncoding(file, hasHdr, currentEncIdx);
+}
+
+function showGarbleBarSilent(file, hasHdr, currentEncIdx) {
+  // 見た目は文字化けしてなさそうでも、念のため「文字化けしていませんか？」を
+  // 出すかどうか → 最初のUTF-8以外で読めた場合は非表示
+  // UTF-8で読めた場合のみ、Shift-JISファイルの可能性をチェック
+  const bar = document.getElementById('garble-bar');
+  if (currentEncIdx === 0) {
+    // UTF-8で読めた→問題なさそうなので非表示
+    bar.classList.add('hidden');
+  }
+  // 他のエンコーディングで読めた場合も非表示（自動で正しく判定できた）
+}
+
+async function retryWithNextEncoding(file, hasHdr, currentEncIdx) {
+  // 次のエンコーディングを試す
+  const nextIdx = (currentEncIdx + 1) % ENCODING_LIST.length;
+  try {
+    let text = await readFileAsText(file, ENCODING_LIST[nextIdx]);
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+    let parsed;
+    try { parsed = parseCSV(text); }
+    catch(e) { showStatus('error', 'CSVの解析に失敗しました: ' + e.message); return; }
+    if (!parsed.length) { showStatus('error', 'CSVにデータがありません'); return; }
+
+    ingestData(parsed, hasHdr, file.name);
+
+    if (looksGarbled(text)) {
+      // まだ文字化けしている → ボタンを残す（さらに次の候補があれば）
+      showStatus('info', '🔄 別の読み込み方法で再読み込みしました — まだ文字化けする場合はCSVをUTF-8で保存し直してください');
+    } else {
+      dismissGarbleBar();
+      showStatus('success', '✅ 文字化けを解消しました！');
+    }
+  } catch(e) {
+    showStatus('error', '再読み込みに失敗しました: ' + e.message);
+  }
+}
+
+// ============================================================
+//  MANUAL ENTRY
+// ============================================================
+let manualCols = ['品番', '品名'];  // デフォルト列名
+
+function renderManualColList() {
+  const list = document.getElementById('manual-col-list');
+  list.innerHTML = '';
+  manualCols.forEach((name, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'col-tag';
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.value = name;
+    inp.placeholder = `列${i+1}`;
+    inp.style.width = Math.max(60, name.length * 14 + 20) + 'px';
+    inp.oninput = () => {
+      manualCols[i] = inp.value;
+      inp.style.width = Math.max(60, inp.value.length * 14 + 20) + 'px';
+    };
+    const del = document.createElement('button');
+    del.className = 'col-tag-del'; del.textContent = '×';
+    del.title = 'この列を削除';
+    del.setAttribute('aria-label', (manualCols[i] || '列') + 'を削除');
+    del.onclick = () => { manualCols.splice(i, 1); renderManualColList(); };
+    tag.appendChild(inp); tag.appendChild(del);
+    list.appendChild(tag);
+  });
+}
+
+function addManualCol() {
+  manualCols.push('');
+  renderManualColList();
+  // Focus the new input
+  const inputs = document.querySelectorAll('#manual-col-list .col-tag input');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function startManualEntry() {
+  const names = manualCols.map(n => n.trim()).filter(n => n);
+  if (!names.length) { showAppError('E001'); return; }
+
+  // Build empty table with specified columns
+  S.cols = names.map((n, i) => ({ id: `c${i}`, orig: n, name: n }));
+  S.rows = []; S.nextId = 1;
+  S.page = 1; S.editing = null;
+  S.selected = new Set();
+  S.bcCol = S.cols[0]?.id || '';
+  S.printCols = S.cols.slice(0, Math.min(2, S.cols.length)).map(c => c.id);
+
+  document.getElementById('fname-badge').textContent = '手入力';
+  showStatus('success', `✓ ${names.length} 列の表を作成しました。「＋ 行を追加」でデータを入力してください`);
+  unlockDataTabs();
+  renderAll();
+  switchTab('tab-data');
+  saveToStorage();
+}
+
+function ingestData(parsed, hasHdr, fname) {
+  const rawColCount = Math.max(...parsed.map(r => r.length));
+  const maxCol = AppSettings.maxColumns || 30;
+  const colCount = Math.min(rawColCount, maxCol);
+  const truncated = rawColCount > maxCol;
+  S.cols = Array.from({length: colCount}, (_, i) => ({
+    id: `c${i}`,
+    orig: hasHdr ? (parsed[0][i] || `列${i+1}`) : `列${i+1}`,
+    name: hasHdr ? (parsed[0][i] || `列${i+1}`) : `列${i+1}`
+  }));
+
+  const dataRows = hasHdr ? parsed.slice(1) : parsed;
+  S.rows = []; S.nextId = 1; S.selected = new Set();
+  dataRows.forEach(row => {
+    const obj = { _id: S.nextId++ };
+    S.cols.forEach((c, i) => obj[c.id] = row[i] || '');
+    S.rows.push(obj);
+  });
+
+  S.page = 1;
+  S.editing = null;
+  S.bcCol = S.cols[0]?.id || '';
+  S.printCols = S.cols.slice(0, Math.min(2, S.cols.length)).map(c => c.id);
+
+  if (fname) document.getElementById('fname-badge').textContent = fname;
+  let msg = `✓ 読み込み完了：${S.rows.length} 行、${S.cols.length} 列`;
+  if (truncated) msg += `（※元データは ${rawColCount} 列ありましたが、設定上限 ${maxCol} 列でカットしました）`;
+  showStatus(truncated ? 'warning' : 'success', msg);
+  unlockDataTabs();
+  renderAll();
+  switchTab('tab-data');
+  saveToStorage();
+}
+
+function loadSampleData() {
+  const sample = [
+    ['品番', '品名', '数量', '保管場所'],
+    ['A-001', 'ノート（A4）', '50', '棚A-1'],
+    ['A-002', 'ボールペン（黒）', '200', '棚A-2'],
+    ['A-003', '鉛筆（2B）', '150', '棚A-2'],
+    ['B-001', 'ハサミ（大）', '30', '棚B-1'],
+    ['B-002', 'ステープラー', '25', '棚B-1'],
+    ['B-003', 'クリアファイル', '100', '棚B-2'],
+    ['C-001', '電卓', '20', '棚C-1'],
+    ['C-002', 'テープ（透明）', '80', '棚C-2'],
+    ['D-001', 'コピー用紙（500枚）', '40', '棚D-1'],
+    ['D-002', 'ホッチキス針', '60', '棚D-1'],
+    ['E-001', 'マジック（黒）', '45', '棚E-1'],
+    ['E-002', '付箋（正方形）', '120', '棚E-2'],
+  ];
+  ingestData(sample, true, 'サンプルデータ');
+}
+
+// ============================================================
+//  RENDER ALL
+// ============================================================
+function renderAll() {
+  renderTabs();
+  renderTable();
+  renderPrintSettings();
+  updateInfos();
+  renderLendingLists();
+}
+
+function renderTabs() {
+  // 列タブはテーブルヘッダーのインライン編集に置き換え済み（互換用に関数は残す）
+}
+
+function addColumn() {
+  const maxCol = AppSettings.maxColumns || 30;
+  if (S.cols.length >= maxCol) {
+    showAppError('E002', maxCol);
+    return;
+  }
+  const nextIdx = S.cols.length;
+  const newId = 'c' + (Math.max(...S.cols.map(c => parseInt(c.id.slice(1)))) + 1);
+  const newName = '新しい列' + (nextIdx + 1);
+  S.cols.push({ id: newId, orig: newName, name: newName });
+  S.rows.forEach(r => r[newId] = '');
+  renderTabs(); renderTable(); updateInfos();
+  saveToStorage();
+  // 新しい列のヘッダーをインライン編集で開く
+  const ths = document.querySelectorAll('#thead th.col-header');
+  const lastTh = ths[ths.length - 1];
+  if (lastTh) {
+    const newCol = S.cols[S.cols.length - 1];
+    startInlineRename(lastTh, newCol);
+  }
+}
+
+function deleteColumn(colId) {
+  if (S.cols.length <= 1) return;
+  const col = S.cols.find(c => c.id === colId);
+  if (!col) return;
+  if (!confirm(`列「${col.name}」を削除しますか？\nこの列のデータはすべて失われます。`)) return;
+  S.cols = S.cols.filter(c => c.id !== colId);
+  S.rows.forEach(r => delete r[colId]);
+  if (S.bcCol === colId) S.bcCol = S.cols[0]?.id || '';
+  S.printCols = S.printCols.filter(id => id !== colId);
+  renderTabs(); renderTable(); updateInfos();
+  saveToStorage();
+}
+
+// ============================================================
+//  SEARCH & SORT
+// ============================================================
+function onSearch(query) {
+  S.searchQuery = query;
+  S.page = 1;
+  renderTable(); updateInfos();
+}
+
+function getFilteredRows() {
+  if (!S.searchQuery.trim()) return S.rows;
+  const q = S.searchQuery.trim().toLowerCase();
+  return S.rows.filter(row =>
+    S.cols.some(c => String(row[c.id] || '').toLowerCase().includes(q))
+  );
+}
+
+function toggleSort(colId) {
+  if (S.sortCol === colId) {
+    if (S.sortDir === 'asc') S.sortDir = 'desc';
+    else { S.sortCol = null; S.sortDir = 'asc'; }
+  } else {
+    S.sortCol = colId;
+    S.sortDir = 'asc';
+  }
+  S.page = 1;
+  renderTable();
+}
+
+function getSortedRows(rows) {
+  if (!S.sortCol) return rows;
+  const col = S.sortCol;
+  const dir = S.sortDir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const va = a[col] || '', vb = b[col] || '';
+    const na = parseFloat(va), nb = parseFloat(vb);
+    if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+    return String(va).localeCompare(String(vb), 'ja') * dir;
+  });
+}
+
+function renderTable() {
+  // Header
+  const thead = document.getElementById('thead');
+  thead.innerHTML = '';
+  const tr = document.createElement('tr');
+
+  // チェックボックス列ヘッダー（全選択）
+  const thChk = document.createElement('th');
+  thChk.className = 'chk-col';
+  const allCb = document.createElement('input');
+  allCb.type = 'checkbox';
+  allCb.title = '全行を選択/解除';
+  allCb.checked = S.rows.length > 0 && S.selected.size === S.rows.length;
+  allCb.indeterminate = S.selected.size > 0 && S.selected.size < S.rows.length;
+  allCb.onchange = () => toggleSelectAll(allCb.checked);
+  thChk.appendChild(allCb);
+  tr.appendChild(thChk);
+
+  S.cols.forEach(c => {
+    const th = document.createElement('th');
+    th.className = 'col-header';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'col-header-name';
+    nameSpan.textContent = c.name;
+    if (S.sortCol === c.id) {
+      const ind = document.createElement('span');
+      ind.className = 'sort-indicator';
+      ind.textContent = S.sortDir === 'asc' ? ' \u25b2' : ' \u25bc';
+      nameSpan.appendChild(ind);
+    }
+    nameSpan.title = 'クリックでソート / ダブルクリックで列名を変更';
+    nameSpan.onclick = (e) => { e.stopPropagation(); toggleSort(c.id); };
+    nameSpan.ondblclick = (e) => { e.stopPropagation(); startInlineRename(th, c); };
+    th.appendChild(nameSpan);
+    if (S.cols.length > 1) {
+      const del = document.createElement('span');
+      del.className = 'col-header-del';
+      del.textContent = '×';
+      del.title = '列を削除';
+      del.setAttribute('aria-label', c.name + 'を削除');
+      del.onclick = (e) => { e.stopPropagation(); deleteColumn(c.id); };
+      th.appendChild(del);
+    }
+    tr.appendChild(th);
+  });
+  const thA = document.createElement('th');
+  thA.textContent = '操作';
+  thA.style.width = '100px';
+  tr.appendChild(thA);
+  thead.appendChild(tr);
+
+  // Selection bar
+  renderSelectBar();
+
+  // Body — pipeline: filter → sort → paginate
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  const filtered = getSortedRows(getFilteredRows());
+  const start = (S.page - 1) * S.perPage;
+  const visible = filtered.slice(start, start + S.perPage);
+
+  if (!visible.length) {
+    const r = document.createElement('tr');
+    const d = document.createElement('td');
+    d.colSpan = S.cols.length + 2;
+    d.innerHTML = `<div class="empty-state">
+      <span class="empty-icon">📋</span>
+      <p>データがありません</p><small>「行を追加」ボタンで追加できます</small>
+    </div>`;
+    r.appendChild(d); tbody.appendChild(r);
+  } else {
+    visible.forEach(row => {
+      const isEdit = S.editing === row._id;
+      const tr = document.createElement('tr');
+
+      // チェックボックス列
+      const tdChk = document.createElement('td');
+      tdChk.className = 'chk-col';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = S.selected.has(row._id);
+      cb.onchange = () => {
+        if (cb.checked) S.selected.add(row._id);
+        else S.selected.delete(row._id);
+        renderSelectBar();
+        // ヘッダーのallチkb状態更新
+        const hdrCb = thead.querySelector('input[type="checkbox"]');
+        if (hdrCb) {
+          hdrCb.checked = S.selected.size === S.rows.length;
+          hdrCb.indeterminate = S.selected.size > 0 && S.selected.size < S.rows.length;
+        }
+        updateInfos();
+      };
+      tdChk.appendChild(cb);
+      tr.appendChild(tdChk);
+
+      S.cols.forEach(c => {
+        const td = document.createElement('td');
+        if (isEdit) {
+          const inp = document.createElement('input');
+          inp.className = 'edit-input'; inp.type = 'text';
+          inp.value = row[c.id] || '';
+          inp.dataset.col = c.id; inp.dataset.row = row._id;
+          td.appendChild(inp);
+        } else {
+          td.textContent = row[c.id] || '';
+        }
+        tr.appendChild(td);
+      });
+      const tdA = document.createElement('td');
+      tdA.className = 'td-actions';
+      if (isEdit) {
+        const sv = mkBtn('保存', 'btn-success btn-xs', () => saveRow(row._id));
+        const ca = mkBtn('取消', 'btn-secondary btn-xs', () => { S.editing = null; renderTable(); });
+        tdA.appendChild(sv); tdA.appendChild(ca);
+      } else {
+        const ed = mkBtn('編集', 'btn-primary btn-xs', () => { S.editing = row._id; renderTable(); });
+        const dl = mkBtn('削除', 'btn-danger btn-xs', () => deleteRow(row._id));
+        tdA.appendChild(ed); tdA.appendChild(dl);
+      }
+      tr.appendChild(tdA);
+      tbody.appendChild(tr);
+    });
+  }
+  renderPagination();
+  updateScrollHint();
+}
+
+// テーブルの横スクロールヒント（右端にフェードを表示）
+let _scrollHintBound = false;
+function updateScrollHint() {
+  const wrap = document.querySelector('.table-wrap');
+  if (!wrap) return;
+  if (!_scrollHintBound) {
+    wrap.addEventListener('scroll', updateScrollHint);
+    window.addEventListener('resize', updateScrollHint);
+    _scrollHintBound = true;
+  }
+  const hasOverflow = wrap.scrollWidth > wrap.clientWidth;
+  const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 2;
+  wrap.classList.toggle('scroll-hint', hasOverflow && !atEnd);
+}
+
+function toggleSelectAll(checked) {
+  const filtered = getFilteredRows();
+  if (checked) {
+    filtered.forEach(r => S.selected.add(r._id));
+  } else {
+    filtered.forEach(r => S.selected.delete(r._id));
+  }
+  renderTable();
+  updateInfos();
+}
+
+function renderSelectBar() {
+  let bar = document.getElementById('select-bar');
+  if (S.selected.size === 0) {
+    if (bar) bar.classList.add('hidden');
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'select-bar';
+    bar.className = 'select-bar';
+    const toolbar = document.querySelector('#tab-data .table-toolbar');
+    toolbar.parentNode.insertBefore(bar, toolbar.nextSibling);
+  }
+  bar.classList.remove('hidden');
+  bar.innerHTML = `☑ <span class="sel-count">${S.selected.size}</span> / ${S.rows.length} 件を選択中 — 選択した行のみ印刷対象になります　`
+    + `<button class="btn btn-secondary btn-xs" onclick="S.selected.clear(); renderTable(); updateInfos();">選択を解除</button>`;
+}
+
+function renderPagination() {
+  const pg = document.getElementById('pagination');
+  pg.innerHTML = '';
+  const filteredLen = getSortedRows(getFilteredRows()).length;
+  const total = Math.ceil(filteredLen / S.perPage);
+  if (total <= 1) return;
+
+  const prev = mkBtn('◀', 'pg-btn', () => { S.page--; renderTable(); });
+  prev.disabled = S.page === 1;
+  pg.appendChild(prev);
+
+  // Show limited page numbers
+  const range = 5;
+  let start = Math.max(1, S.page - Math.floor(range/2));
+  let end   = Math.min(total, start + range - 1);
+  if (end - start < range - 1) start = Math.max(1, end - range + 1);
+
+  if (start > 1) { pg.appendChild(mkPageBtn(1)); if (start > 2) pg.appendChild(mkDot()); }
+  for (let i = start; i <= end; i++) pg.appendChild(mkPageBtn(i));
+  if (end < total) { if (end < total - 1) pg.appendChild(mkDot()); pg.appendChild(mkPageBtn(total)); }
+
+  const next = mkBtn('▶', 'pg-btn', () => { S.page++; renderTable(); });
+  next.disabled = S.page === total;
+  pg.appendChild(next);
+}
+
+function mkPageBtn(i) {
+  const b = mkBtn(i, 'pg-btn' + (i === S.page ? ' active' : ''), () => { S.page = i; renderTable(); });
+  return b;
+}
+function mkDot() { const s = document.createElement('span'); s.textContent = '…'; s.style.color='#aaa'; return s; }
+
+function renderPrintSettings() {
+  // バーコード列
+  const sel = document.getElementById('bc-col-select');
+  sel.innerHTML = '<option value="">-- 列を選択してください --</option>';
+  S.cols.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name;
+    if (c.id === S.bcCol) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => { S.bcCol = sel.value; saveToStorage(); };
+
+  // バーコード形式
+  const fmtSel = document.getElementById('bc-format-select');
+  fmtSel.value = S.bcFormat;
+  fmtSel.onchange = () => {
+    S.bcFormat = fmtSel.value;
+    updateFormatHint();
+    saveToStorage();
+  };
+  updateFormatHint();
+
+  // バーコード値テキスト表示
+  document.getElementById('bc-show-value').checked = S.bcShowValue;
+
+  // ラベル用紙プリセット
+  const presetSel = document.getElementById('label-preset-select');
+  if (presetSel) presetSel.value = S.labelPreset || 'a4-24';
+
+  // ラベルレイアウト
+  const layoutSel = document.getElementById('label-layout-select');
+  layoutSel.value = S.labelLayout;
+  layoutSel.onchange = () => {
+    S.labelLayout = layoutSel.value;
+    updateLayoutHint();
+    saveToStorage();
+  };
+  updateLayoutHint();
+
+  // 文字サイズ
+  document.getElementById('label-font-size').value = S.labelFontSize;
+
+  // 最大行数
+  document.getElementById('label-max-lines').value = S.labelMaxLines;
+
+  // ラベル印刷項目
+  const checks = document.getElementById('print-col-checks');
+  checks.innerHTML = '';
+  S.cols.forEach(c => {
+    const checked = S.printCols.includes(c.id);
+    const lbl = document.createElement('label');
+    lbl.className = 'pill-check' + (checked ? ' checked' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = checked;
+    cb.onchange = () => {
+      if (cb.checked) { if (!S.printCols.includes(c.id)) S.printCols.push(c.id); lbl.classList.add('checked'); }
+      else { S.printCols = S.printCols.filter(x => x !== c.id); lbl.classList.remove('checked'); }
+      saveToStorage();
+    };
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(c.name));
+    checks.appendChild(lbl);
+  });
+}
+
+function updateInfos() {
+  const filtered = getFilteredRows();
+  const filterInfo = S.searchQuery ? `（検索結果: ${filtered.length} 件）` : '';
+  const selInfo = S.selected.size > 0 ? `（${S.selected.size} 件選択中）` : '';
+  document.getElementById('row-count-info').textContent = `全 ${S.rows.length} 件 ${filterInfo}${selInfo}`;
+  const searchEl = document.getElementById('table-search');
+  if (searchEl && searchEl.value !== S.searchQuery) searchEl.value = S.searchQuery;
+  const ppSel = document.getElementById('per-page-select');
+  if (ppSel) ppSel.value = String(S.perPage);
+  const lpp = getLabelsPerPage();
+  const printRows = getPrintRows();
+  const pages = Math.max(1, Math.ceil(printRows.length / lpp));
+  const selNote = S.selected.size > 0 ? `選択 ${S.selected.size} 件` : `全 ${S.rows.length} 件`;
+  document.getElementById('print-row-info').textContent =
+    `${selNote} → 印刷 ${pages} ページ（${lpp}面/ページ）`;
+}
+
+// ============================================================
+//  DATA OPERATIONS
+// ============================================================
+function changePerPage(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n < 1) return;
+  S.perPage = n;
+  S.page = 1;
+  renderTable(); updateInfos();
+  saveToStorage();
+}
+
+function addRow() {
+  const obj = { _id: S.nextId++ };
+  S.cols.forEach(c => obj[c.id] = '');
+  S.rows.push(obj);
+  S.page = Math.ceil(S.rows.length / S.perPage);
+  S.editing = obj._id;
+  renderTable(); updateInfos();
+  saveToStorage();
+}
+
+let undoTimer = null;
+
+function deleteRow(id) {
+  const row = S.rows.find(r => r._id === id);
+  if (!row) return;
+
+  // 行の位置を記録（Undo用）
+  const idx = S.rows.indexOf(row);
+  const wasSelected = S.selected.has(id);
+
+  // 削除実行
+  S.rows.splice(idx, 1);
+  S.selected.delete(id);
+  const max = Math.max(1, Math.ceil(S.rows.length / S.perPage));
+  if (S.page > max) S.page = max;
+  renderTable(); updateInfos();
+  saveToStorage();
+
+  // Undoバー表示（8秒間）
+  showUndoBar(row, idx, wasSelected);
+}
+
+function showUndoBar(deletedRow, originalIdx, wasSelected) {
+  // 既存のUndoバーがあれば消す
+  dismissUndo();
+
+  const bar = document.createElement('div');
+  bar.className = 'undo-bar';
+  bar.id = 'undo-bar';
+
+  // 削除した行の要約テキスト
+  const summary = S.cols.slice(0, 2).map(c => deletedRow[c.id]).filter(Boolean).join(' / ') || '(空の行)';
+
+  bar.innerHTML = `
+    <span>🗑 「${esc(summary.substring(0, 30))}」を削除しました</span>
+    <button class="undo-btn" id="undo-btn">元に戻す</button>
+    <div class="undo-timer"><div class="undo-timer-fill" style="animation-duration:8s;"></div></div>
+  `;
+  document.body.appendChild(bar);
+
+  document.getElementById('undo-btn').onclick = () => {
+    // 元の位置に復元
+    S.rows.splice(Math.min(originalIdx, S.rows.length), 0, deletedRow);
+    if (wasSelected) S.selected.add(deletedRow._id);
+    renderTable(); updateInfos();
+    saveToStorage();
+    dismissUndo();
+  };
+
+  undoTimer = setTimeout(dismissUndo, 8000);
+}
+
+function dismissUndo() {
+  if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+  const bar = document.getElementById('undo-bar');
+  if (bar) bar.remove();
+}
+
+function saveRow(id) {
+  const row = S.rows.find(r => r._id === id);
+  if (!row) return;
+  document.querySelectorAll(`.edit-input[data-row="${id}"]`).forEach(inp => {
+    row[inp.dataset.col] = inp.value;
+  });
+  S.editing = null; renderTable();
+  saveToStorage();
+}
+
+// ============================================================
+//  TAB NAVIGATION
+// ============================================================
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+  document.getElementById(tabId).classList.add('active');
+  const btnMap = { 'tab-import': 'tb-import', 'tab-data': 'tb-data', 'tab-print': 'tb-print', 'tab-lending': 'tb-lending' };
+  const btn = document.getElementById(btnMap[tabId]);
+  btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+  if (tabId === 'tab-lending') {
+    setTimeout(() => { const inp = document.getElementById('lending-barcode-input'); if (inp) inp.focus(); }, 100);
+    updateLendingBcWarning();
+    renderLendingLists();
+  }
+}
+
+function unlockDataTabs() {
+  const tb2 = document.getElementById('tb-data');
+  const tb3 = document.getElementById('tb-print');
+  const tb4 = document.getElementById('tb-lending');
+  tb2.disabled = false; tb2.classList.add('unlocked');
+  tb3.disabled = false; tb3.classList.add('unlocked');
+  tb4.disabled = false; tb4.classList.add('unlocked');
+  // Mark tab1 badge as done
+  document.getElementById('tn-import').parentElement.classList.add('done');
+}
+
+function goToImport() {
+  if (!confirm('現在のデータを破棄して最初からやり直しますか？\n保存済みのデータもクリアされます。\n※ 貸出し履歴もクリアされます。')) return;
+  clearStorage();
+  clearLendingStorage();
+  S.cols = []; S.rows = []; S.nextId = 1;
+  S.editing = null; S.bcCol = ''; S.printCols = [];
+  S.selected = new Set();
+  LS.records = []; LS.nextLendId = 1;
+  document.getElementById('import-status').classList.add('hidden');
+  document.getElementById('file-input').value = '';
+  // タブ2・3・4を再度ロック
+  const tb2 = document.getElementById('tb-data');
+  const tb3 = document.getElementById('tb-print');
+  const tb4 = document.getElementById('tb-lending');
+  tb2.disabled = true; tb2.classList.remove('unlocked', 'done');
+  tb3.disabled = true; tb3.classList.remove('unlocked', 'done');
+  tb4.disabled = true; tb4.classList.remove('unlocked', 'done');
+  document.getElementById('tn-import').parentElement.classList.remove('done');
+  switchTab('tab-import');
+}
+
+// ============================================================
+//  CSV EXPORT
+// ============================================================
+function exportCSV() {
+  if (!S.rows.length) { showAppError('E003'); return; }
+  const escape = v => {
+    const s = String(v ?? '');
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    S.cols.map(c => escape(c.name)).join(','),
+    ...S.rows.map(row => S.cols.map(c => escape(row[c.id])).join(','))
+  ];
+  const csv  = '\uFEFF' + lines.join('\r\n'); // BOM付きUTF-8でExcelでも開ける
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'barcode-data.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+//  TEMPLATE DOWNLOAD
+// ============================================================
+const TEMPLATE_DATA = [
+  ['管理番号', '品名', 'カテゴリ', '保管場所', '数量', '備考'],
+  ['ITEM-001', 'ノートPC', 'IT機器', '管理室', 5, 'Windows11'],
+  ['ITEM-002', 'プロジェクター', 'AV機器', '会議室A', 2, 'HDMI対応'],
+  ['ITEM-003', '会議テーブル', '備品', '会議室B', 4, '']
+];
+
+function downloadTemplateCSV() {
+  const escape = v => {
+    const s = String(v ?? '');
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = TEMPLATE_DATA.map(row => row.map(v => escape(v)).join(','));
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'バーコード管理_テンプレート.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadTemplateXLSX() {
+  const ws = XLSX.utils.aoa_to_sheet(TEMPLATE_DATA);
+  ws['!cols'] = [
+    { wch: 14 }, // 管理番号
+    { wch: 20 }, // 品名
+    { wch: 12 }, // カテゴリ
+    { wch: 14 }, // 保管場所
+    { wch:  8 }, // 数量
+    { wch: 18 }  // 備考
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'データ');
+  XLSX.writeFile(wb, 'バーコード管理_テンプレート.xlsx');
+}
+
+// ============================================================
+//  RENAME MODAL
+// ============================================================
+function openRename(colId) {
+  const c = S.cols.find(x => x.id === colId);
+  if (!c) return;
+  S.renaming = colId;
+  document.getElementById('rename-hint').textContent = `元の列名: "${c.orig}"`;
+  const inp = document.getElementById('rename-input');
+  inp.value = c.name;
+  document.getElementById('rename-overlay').classList.remove('hidden');
+  setTimeout(() => { inp.select(); inp.focus(); }, 50);
+}
+
+function closeRename() {
+  S.renaming = null;
+  document.getElementById('rename-overlay').classList.add('hidden');
+}
+
+function applyRename() {
+  const name = document.getElementById('rename-input').value.trim();
+  if (!name) { showAppError('E004'); return; }
+  const c = S.cols.find(x => x.id === S.renaming);
+  if (c) c.name = name;
+  closeRename();
+  renderTabs(); renderTable(); renderPrintSettings();
+  saveToStorage();
+}
+
+function startInlineRename(th, col) {
+  const orig = col.name;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = orig;
+  inp.className = 'inline-col-rename';
+  th.innerHTML = '';
+  th.appendChild(inp);
+  inp.focus();
+  inp.select();
+  let committed = false;
+  function commit() {
+    if (committed) return;
+    committed = true;
+    const v = inp.value.trim();
+    if (v && v !== orig) {
+      col.name = v;
+      renderPrintSettings();
+      saveToStorage();
+    }
+    renderTable();
+  }
+  inp.onblur = commit;
+  inp.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = orig; inp.blur(); }
+  };
+}
+
+// ============================================================
+//  PRINT TARGET ROWS (選択あれば選択のみ、なければ全件)
+// ============================================================
+function getPrintRows() {
+  if (S.selected.size > 0) {
+    return S.rows.filter(r => S.selected.has(r._id));
+  }
+  return S.rows;
+}
+
+// ============================================================
+//  PRINT PREVIEW
+// ============================================================
+function openPreview() {
+  if (!S.bcCol) { showAppError('E005'); return; }
+  const printRows = getPrintRows();
+  if (!printRows.length) { showAppError('E006'); return; }
+  S.pvPage = 0;
+  updateLabelCSS();
+  renderPreview();
+  document.getElementById('preview-overlay').classList.remove('hidden');
+}
+
+function closePreview() {
+  document.getElementById('preview-overlay').classList.add('hidden');
+}
+
+function pvChangePage(d) {
+  const lpp = getLabelsPerPage();
+  const printRows = getPrintRows();
+  const total = Math.ceil(printRows.length / lpp);
+  S.pvPage = Math.max(0, Math.min(total - 1, S.pvPage + d));
+  renderPreview();
+}
+
+function renderPreview() {
+  const lpp = getLabelsPerPage();
+  const printRows = getPrintRows();
+  const total = Math.ceil(printRows.length / lpp);
+  const pageRows = printRows.slice(S.pvPage * lpp, (S.pvPage + 1) * lpp);
+  const selLabel = S.selected.size > 0 ? `（${S.selected.size} 件選択中）` : '（全件）';
+
+  document.getElementById('pv-page-info').textContent = `${S.pvPage + 1} / ${total} ページ`;
+  document.getElementById('pv-sub-info').textContent = `${printRows.length} 件 ${selLabel}`;
+  document.getElementById('pv-prev').disabled = S.pvPage === 0;
+  document.getElementById('pv-next').disabled = S.pvPage >= total - 1;
+  document.getElementById('pv-footer-info').textContent =
+    `${printRows.length} 件 ÷ ${lpp}面 = ${total} ページ（A4用紙 ${total} 枚）`;
+
+  const grid = document.getElementById('label-grid');
+  grid.innerHTML = '';
+
+  const isTextTop = S.labelLayout === 'text-top';
+  const isQR = S.bcFormat === 'QR';
+
+  for (let i = 0; i < lpp; i++) {
+    const row = pageRows[i];
+    const div = document.createElement('div');
+    div.className = 'plabel' + (row ? '' : ' empty') + (row && isTextTop ? ' text-top' : '');
+
+    if (row) {
+      const val = row[S.bcCol] || '';
+
+      // バーコード/QRコード生成
+      let svgEl = null;
+      if (val) {
+        if (isQR) {
+          svgEl = createQRCodeElement(val, 80);
+          if (!svgEl) {
+            const err = document.createElement('div');
+            err.style.cssText = 'font-size:9px;color:#e74c3c;text-align:center;';
+            err.textContent = '⚠ QR Error';
+            svgEl = err;
+          } else {
+            svgEl.setAttribute('role', 'img');
+            svgEl.setAttribute('aria-label', 'QRコード: ' + val.substring(0, 30));
+          }
+        } else {
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          try {
+            JsBarcode(svg, val, {
+              format: S.bcFormat, displayValue: false,
+              margin: 1, width: 1.2, height: 36,
+              background: 'transparent'
+            });
+            svg.setAttribute('role', 'img');
+            svg.setAttribute('aria-label', 'バーコード: ' + val.substring(0, 30));
+            svgEl = svg;
+          } catch(e) {
+            const err = document.createElement('div');
+            err.style.cssText = 'font-size:9px;color:#e74c3c;text-align:center;';
+            err.textContent = '⚠ BC Error: ' + esc(val.substring(0,12));
+            svgEl = err;
+          }
+        }
+      }
+
+      // テキスト要素生成
+      let textsEl = null;
+      const textItems = buildLabelTexts(row);
+      if (textItems.length) {
+        const texts = document.createElement('div');
+        texts.className = 'plabel-texts';
+        const pvFontMap = { small: '6px', medium: '7px', large: '8px' };
+        if (S.labelFontSize !== 'auto' && pvFontMap[S.labelFontSize]) {
+          texts.style.fontSize = pvFontMap[S.labelFontSize];
+        }
+        textItems.slice(0, S.labelMaxLines).forEach(t => {
+          const d2 = document.createElement('div');
+          d2.textContent = t;
+          texts.appendChild(d2);
+        });
+        textsEl = texts;
+      }
+
+      // レイアウトに応じて配置順を変更
+      if (isTextTop) {
+        if (textsEl) div.appendChild(textsEl);
+        if (svgEl) div.appendChild(svgEl);
+      } else {
+        if (svgEl) div.appendChild(svgEl);
+        if (textsEl) div.appendChild(textsEl);
+      }
+    }
+    grid.appendChild(div);
+  }
+}
+
+// フォーマットヒントを更新
+function updateFormatHint() {
+  const hint = document.getElementById('bc-format-hint');
+  if (!hint) return;
+  const hints = {
+    'CODE128': 'Code128: ASCII全文字対応（推奨）',
+    'CODE39': 'Code39: A-Z 0-9 - . $ / + % スペースのみ',
+    'QR': 'QRコード: 日本語・URL・長文テキストに対応'
+  };
+  hint.textContent = hints[S.bcFormat] || '';
+}
+
+// レイアウトヒントを更新
+function updateLayoutHint() {
+  const hint = document.getElementById('layout-hint');
+  const colHint = document.getElementById('print-col-hint');
+  if (S.labelLayout === 'text-top') {
+    if (hint) hint.textContent = 'テキスト情報を上部（左寄せ）に、バーコードを下部に配置';
+    if (colHint) colHint.textContent = 'バーコードの上に表示するテキスト情報を選びます';
+  } else {
+    if (hint) hint.textContent = '標準：バーコードを上に、テキスト情報を下に配置';
+    if (colHint) colHint.textContent = 'バーコードの下に表示するテキスト情報を選びます';
+  }
+}
+
+// ラベルに表示するテキスト行を構築
+function buildLabelTexts(row) {
+  const items = [];
+  // バーコード値テキスト表示
+  if (S.bcShowValue && S.bcCol) {
+    const v = row[S.bcCol];
+    if (v) items.push(v);
+  }
+  // 選択した列
+  S.printCols.forEach(cid => {
+    // バーコード値と重複しない場合のみ追加
+    if (S.bcShowValue && cid === S.bcCol) return;
+    const v = row[cid];
+    if (v) items.push(v);
+  });
+  return items;
+}
+
+// ============================================================
+//  PRINT
+// ============================================================
+function cleanupPrintRoot() {
+  const root = document.getElementById('print-root');
+  root.innerHTML = '';
+  root.style.display = 'none';
+}
+
+function doPrint() {
+  // Show print guide modal before printing
+  showPrintGuide();
+}
+
+function _executePrint() {
+  const lpp = getLabelsPerPage();
+  const printRows = getPrintRows();
+  const total = Math.ceil(printRows.length / lpp);
+  const root = document.getElementById('print-root');
+  root.innerHTML = '';
+  root.style.display = 'block';
+
+  let bcErrors = [];
+  const isTextTop = S.labelLayout === 'text-top';
+  const isQR = S.bcFormat === 'QR';
+
+  for (let p = 0; p < total; p++) {
+    const pageRows = printRows.slice(p * lpp, (p + 1) * lpp);
+    const sheet = document.createElement('div');
+    sheet.className = 'print-sheet';
+
+    for (let i = 0; i < lpp; i++) {
+      const row = pageRows[i];
+      const lbl = document.createElement('div');
+      lbl.className = 'print-label' + (row ? '' : ' empty-lbl') + (row && isTextTop ? ' text-top' : '');
+
+      if (row) {
+        const val = row[S.bcCol] || '';
+
+        // バーコード/QRコード生成
+        let svgEl = null;
+        if (val) {
+          if (isQR) {
+            svgEl = createQRCodeElement(val, 100);
+            if (!svgEl) {
+              bcErrors.push({ row: p * lpp + i + 1, val: val.substring(0, 20) });
+            } else {
+              svgEl.setAttribute('role', 'img');
+              svgEl.setAttribute('aria-label', 'QRコード: ' + val.substring(0, 30));
+            }
+          } else {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            try {
+              JsBarcode(svg, val, {
+                format: S.bcFormat, displayValue: false,
+                margin: 2, width: 1.5, height: 50, background: 'white'
+              });
+              svg.setAttribute('role', 'img');
+              svg.setAttribute('aria-label', 'バーコード: ' + val.substring(0, 30));
+              svgEl = svg;
+            } catch(e) {
+              bcErrors.push({ row: p * lpp + i + 1, val: val.substring(0, 20) });
+            }
+          }
+        }
+
+        // テキスト要素生成
+        let textEl = null;
+        const textItems = buildLabelTexts(row);
+        if (textItems.length) {
+          const td = document.createElement('div');
+          td.className = 'print-label-text';
+          const ptFontMap = { small: '6pt', medium: '7pt', large: '8pt' };
+          if (S.labelFontSize !== 'auto' && ptFontMap[S.labelFontSize]) {
+            td.style.fontSize = ptFontMap[S.labelFontSize];
+          }
+          textItems.slice(0, S.labelMaxLines).forEach(t => {
+            const d2 = document.createElement('div');
+            d2.textContent = t;
+            td.appendChild(d2);
+          });
+          textEl = td;
+        }
+
+        // レイアウトに応じて配置順を変更
+        if (isTextTop) {
+          if (textEl) lbl.appendChild(textEl);
+          if (svgEl) lbl.appendChild(svgEl);
+        } else {
+          if (svgEl) lbl.appendChild(svgEl);
+          if (textEl) lbl.appendChild(textEl);
+        }
+      }
+      sheet.appendChild(lbl);
+    }
+    root.appendChild(sheet);
+  }
+
+  // バーコード生成エラーがあればユーザーに警告
+  if (bcErrors.length) {
+    const fmtName = isQR ? 'QRコード' : S.bcFormat;
+    const msgs = bcErrors.slice(0, 5).map(e => `行${e.row}: "${e.val}"`).join('\n');
+    const more = bcErrors.length > 5 ? `\n…他 ${bcErrors.length - 5} 件` : '';
+    const proceed = confirm(
+      `⚠ 以下のデータは${fmtName}に変換できませんでした：\n\n${msgs}${more}\n\nこれらのラベルはコードなしで印刷されます。続行しますか？`
+    );
+    if (!proceed) { cleanupPrintRoot(); return; }
+  }
+
+  // onafterprint で確実にクリーンアップ（フォールバック付き）
+  const cleanup = () => {
+    window.removeEventListener('afterprint', cleanup);
+    clearTimeout(fallback);
+    cleanupPrintRoot();
+  };
+  window.addEventListener('afterprint', cleanup);
+  const fallback = setTimeout(cleanup, 5000);
+
+  window.print();
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function mkBtn(text, cls, fn) {
+  const b = document.createElement('button');
+  b.className = 'btn ' + cls;
+  if (typeof text === 'number') b.textContent = text;
+  else b.textContent = text;
+  b.onclick = fn;
+  return b;
+}
+
+/** XSSサニタイズ: innerHTML で表示するユーザー入力値は必ずこの関数を通す */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('import-status');
+  el.className = 'status-bar ' + type;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function handleOverlayClick(e, id) {
+  if (e.target.id === id) {
+    if (id === 'rename-overlay') closeRename();
+    else closePreview();
+  }
+}
+
+// ============================================================
+//  EVENTS
+// ============================================================
+document.getElementById('file-input').addEventListener('change', e => {
+  const f = e.target.files[0]; if (f) loadCSVFile(f);
+});
+
+// Initialize: open IDB, restore saved data, or show manual col list
+(async function initApp() {
+  await openDB();
+  const restored = await loadFromStorage();
+  renderManualColList();
+  updateSaveIndicator();
+  if (!restored) await loadLendingFromStorage();
+  initLendingTab();
+  switchLendingView('current');
+  // Restore label preset
+  if (S.labelPreset) changeLabelPreset(S.labelPreset);
+})();
+
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', ()  => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0]; if (f) loadCSVFile(f);
+});
+
+document.getElementById('rename-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') applyRename();
+  if (e.key === 'Escape') closeRename();
+});
+
+// ============================================================
+//  DETACHED PANEL MODE & MULTI-WINDOW
+// ============================================================
+const PANEL_MAP = {
+  'panel-import': { tabId: 'tab-import', title: '① データの準備', windowName: 'bc-panel-import' },
+  'panel-data':   { tabId: 'tab-data',   title: '② データの確認・編集', windowName: 'bc-panel-data' },
+  'panel-print':  { tabId: 'tab-print',  title: '③ バーコード設定・印刷', windowName: 'bc-panel-print' },
+  'panel-lending': { tabId: 'tab-lending', title: '④ 貸出し・返却管理', windowName: 'bc-panel-lending' }
+};
+
+let childWindows = {}; // { panelKey: windowRef }
+
+// Check hash and enter detached mode if applicable
+(function initDetached() {
+  const hash = location.hash.replace('#', '');
+  if (!PANEL_MAP[hash]) return;
+
+  const info = PANEL_MAP[hash];
+  document.body.classList.add('detached-mode');
+  document.getElementById('db-title').textContent = info.title;
+  document.title = info.title + ' — バーコード管理ツール';
+
+  // Show only the target panel
+  const panel = document.getElementById(info.tabId);
+  panel.classList.add('detached-target');
+
+  // Ensure tabs are unlocked for data/print panels
+  if (hash !== 'panel-import' && S.cols.length) {
+    unlockDataTabs();
+    renderAll();
+  }
+})();
+
+function onPopOut(e, panelKey) {
+  const info = PANEL_MAP[panelKey];
+  if (!info) return;
+
+  // If already open, just focus that window and cancel link navigation
+  if (childWindows[panelKey] && !childWindows[panelKey].closed) {
+    e.preventDefault();
+    childWindows[panelKey].focus();
+    return;
+  }
+
+  // Set correct full URL on the <a> tag (base + hash)
+  const a = e.currentTarget;
+  a.href = location.href.split('#')[0] + '#' + panelKey;
+
+  // The <a target="..."> will open the link in a named window naturally
+  // (no popup blocker because it's a genuine <a> click)
+  // After the link opens, capture the window reference for duplicate prevention
+  setTimeout(() => {
+    try {
+      const w = window.open('', info.windowName); // get ref to already-opened named window
+      if (w) childWindows[panelKey] = w;
+    } catch(err) { /* cross-origin fallback: ignore */ }
+  }, 500);
+}
+
+// ============================================================
+//  BEFOREUNLOAD WARNING
+// ============================================================
+window.addEventListener('beforeunload', function(e) {
+  // 保存失敗中（赤い警告バーが出ている場合）は常に警告
+  if (document.getElementById('save-warning')) {
+    e.preventDefault();
+    return;
+  }
+  // 設定で「閉じる前の確認」がONで、未保存の変更がある場合に警告
+  if (AppSettings.confirmClose && hasUnsavedChanges) {
+    e.preventDefault();
+    return;
+  }
+});
+
+// Cross-window sync via BroadcastChannel (replaces localStorage storage events)
+if (_syncChannel) {
+  _syncChannel.onmessage = async function(e) {
+    const { type } = e.data || {};
+    try {
+      if (type === 'main') {
+        let data = null;
+        if (_useIDB) {
+          data = await idbGet('main', STORAGE_KEY);
+        } else {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) data = JSON.parse(raw);
+        }
+        if (!data || !data.cols || !data.cols.length) return;
+
+        S.cols = data.cols;
+        S.rows = data.rows || [];
+        S.nextId = data.nextId || 1;
+        S.bcCol = data.bcCol || '';
+        S.bcFormat = data.bcFormat || 'CODE128';
+        S.bcShowValue = data.bcShowValue || false;
+        S.printCols = data.printCols || [];
+        S.labelLayout = data.labelLayout || 'bc-top';
+        S.labelFontSize = data.labelFontSize || 'auto';
+        S.labelMaxLines = data.labelMaxLines || 3;
+        S.labelPreset = data.labelPreset || 'a4-24';
+
+        if (S.cols.length) unlockDataTabs();
+        renderAll();
+
+        // Show sync flash
+        const syncEl = document.getElementById('db-sync');
+        if (syncEl) {
+          syncEl.textContent = '✅ 同期しました';
+          syncEl.classList.add('synced');
+          setTimeout(() => {
+            syncEl.textContent = '🔄 データ自動同期中';
+            syncEl.classList.remove('synced');
+          }, 2000);
+        }
+      } else if (type === 'lending') {
+        let data = null;
+        if (_useIDB) {
+          data = await idbGet('lending', LENDING_KEY);
+        } else {
+          const raw = localStorage.getItem(LENDING_KEY);
+          if (raw) data = JSON.parse(raw);
+        }
+        if (data) {
+          LS.records = data.records || [];
+          LS.nextLendId = data.nextLendId || 1;
+          renderLendingLists();
+        }
+      }
+    } catch(err) {
+      console.warn('BroadcastChannel sync error:', err.message);
+    }
+  };
+} else if (!_useIDB) {
+  // フォールバック: BroadcastChannel非対応 + localStorage使用時はstorageイベントで同期
+  window.addEventListener('storage', function(e) {
+    if (e.key === STORAGE_KEY && e.newValue) {
+      try {
+        const data = JSON.parse(e.newValue);
+        if (!data.cols || !data.cols.length) return;
+        S.cols = data.cols;
+        S.rows = data.rows || [];
+        S.nextId = data.nextId || 1;
+        S.bcCol = data.bcCol || '';
+        S.bcFormat = data.bcFormat || 'CODE128';
+        S.bcShowValue = data.bcShowValue || false;
+        S.printCols = data.printCols || [];
+        S.labelLayout = data.labelLayout || 'bc-top';
+        S.labelFontSize = data.labelFontSize || 'auto';
+        S.labelMaxLines = data.labelMaxLines || 3;
+        if (S.cols.length) unlockDataTabs();
+        renderAll();
+      } catch(err) { console.warn('Storage sync error:', err.message); }
+    }
+    if (e.key === LENDING_KEY && e.newValue) {
+      try {
+        const data = JSON.parse(e.newValue);
+        LS.records = data.records || [];
+        LS.nextLendId = data.nextLendId || 1;
+        renderLendingLists();
+      } catch(err) { console.warn('Lending sync error:', err.message); }
+    }
+  });
+}
+
+// ============================================================
+//  LENDING: BARCODE LOOKUP
+// ============================================================
+function initLendingTab() {
+  const input = document.getElementById('lending-barcode-input');
+  if (!input) return;
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); lookupBarcode(); }
+  });
+}
+
+function updateLendingBcWarning() {
+  const w = document.getElementById('lending-bc-warning');
+  if (w) w.classList.toggle('hidden', !!S.bcCol);
+}
+
+function lookupBarcode() {
+  const input = document.getElementById('lending-barcode-input');
+  const barcode = input.value.trim();
+  if (!barcode) return;
+  if (!S.bcCol) {
+    showAppError('E007');
+    return;
+  }
+  const matches = S.rows.filter(row => row[S.bcCol] === barcode);
+  if (matches.length === 0) { showLendingItemNotFound(barcode); return; }
+  if (matches.length === 1) { processLendingItem(matches[0], barcode); }
+  else { showDisambiguation(matches, barcode); }
+}
+
+function showLendingItemNotFound(barcode) {
+  const result = document.getElementById('lending-item-result');
+  result.classList.remove('hidden');
+  const card = document.getElementById('item-info-card');
+  card.className = 'item-info-card';
+  card.innerHTML = `<div class="item-info-title">⚠ 該当する品目が見つかりません</div>
+    <p style="font-size:13px;color:#888;">バーコード「${esc(barcode)}」に一致するデータがありません。</p>`;
+  document.getElementById('lending-form').classList.add('hidden');
+  document.getElementById('return-form').classList.add('hidden');
+}
+
+function showDisambiguation(matches, barcode) {
+  const result = document.getElementById('lending-item-result');
+  result.classList.remove('hidden');
+  const card = document.getElementById('item-info-card');
+  card.className = 'item-info-card';
+  let html = '<ul class="disambig-list">';
+  matches.forEach(row => {
+    const desc = S.cols.map(c => `${esc(c.name)}: ${esc(row[c.id] || '-')}`).join('　');
+    html += `<li data-row-id="${row._id}" data-barcode="${esc(barcode)}">${desc}</li>`;
+  });
+  html += '</ul>';
+  card.innerHTML = `<div class="item-info-title">🔍 同じバーコードの品目が ${matches.length} 件あります</div>
+    <p style="font-size:13px;color:#888;margin-bottom:8px;">対象の品目を選択してください：</p>${html}`;
+  card.querySelectorAll('.disambig-list li[data-row-id]').forEach(li => {
+    li.onclick = () => {
+      const rid = Number(li.dataset.rowId);
+      const bc = li.dataset.barcode;
+      processLendingItem(S.rows.find(r => r._id === rid), bc);
+    };
+  });
+  document.getElementById('lending-form').classList.add('hidden');
+  document.getElementById('return-form').classList.add('hidden');
+}
+
+function isOverdue(record) {
+  if (record.status === 'returned') return false;
+  if (!record.dueDate) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return new Date(record.dueDate) < today;
+}
+
+function processLendingItem(row, barcode) {
+  if (!row) return;
+  LS.pendingBarcode = barcode;
+  LS.pendingRowId = row._id;
+  const result = document.getElementById('lending-item-result');
+  result.classList.remove('hidden');
+
+  const activeLending = LS.records.find(r => r.barcode === barcode && r.status !== 'returned');
+  const card = document.getElementById('item-info-card');
+  const statusClass = activeLending ? (isOverdue(activeLending) ? 'item-overdue' : 'item-lent') : 'item-available';
+  card.className = 'item-info-card ' + statusClass;
+
+  let fields = '<div class="item-info-grid">';
+  S.cols.forEach(c => { fields += `<div class="item-info-field"><strong>${esc(c.name)}:</strong> ${esc(row[c.id] || '-')}</div>`; });
+  fields += '</div>';
+
+  let badge;
+  if (activeLending) {
+    const isOd = isOverdue(activeLending);
+    badge = `<span class="item-status-badge ${isOd ? 'badge-overdue' : 'badge-lent'}">${isOd ? '延滞中' : '貸出中'}</span>`;
+  } else {
+    badge = '<span class="item-status-badge badge-available">在庫あり（貸出可能）</span>';
+  }
+  card.innerHTML = `<div class="item-info-title">📦 品目情報</div>${fields}${badge}`;
+
+  if (activeLending) { showReturnForm(activeLending); } else { showLendingForm(); }
+}
+
+// ============================================================
+//  LENDING: FORMS
+// ============================================================
+function showLendingForm() {
+  document.getElementById('lending-form').classList.remove('hidden');
+  document.getElementById('return-form').classList.add('hidden');
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('lend-date').value = today;
+  document.getElementById('lend-borrower').value = '';
+  const due = new Date(); due.setDate(due.getDate() + 14);
+  document.getElementById('lend-due-date').value = due.toISOString().split('T')[0];
+  setTimeout(() => document.getElementById('lend-borrower').focus(), 50);
+}
+
+function showReturnForm(record) {
+  document.getElementById('lending-form').classList.add('hidden');
+  document.getElementById('return-form').classList.remove('hidden');
+  const info = document.getElementById('return-info');
+  const overdueText = isOverdue(record) ? '<br><strong style="color:#e74c3c;">⚠ 返却予定日を過ぎています！</strong>' : '';
+  info.innerHTML = `<strong>貸出先:</strong> ${esc(record.borrower)}<br><strong>貸出日:</strong> ${record.lentDate}<br><strong>返却予定日:</strong> ${record.dueDate}${overdueText}`;
+  document.getElementById('return-date').value = new Date().toISOString().split('T')[0];
+}
+
+function submitLending() {
+  const borrower = document.getElementById('lend-borrower').value.trim();
+  let lentDate = document.getElementById('lend-date').value;
+  let dueDate = document.getElementById('lend-due-date').value;
+  if (AppSettings.lendingRequireBorrower && !borrower) { showAppError('E008'); return; }
+  if (AppSettings.lendingRequireDates) {
+    if (!lentDate) { showAppError('E009'); return; }
+    if (!dueDate) { showAppError('E010'); return; }
+  }
+  // 日付が未入力の場合は今日を自動設定
+  if (!lentDate) lentDate = new Date().toISOString().split('T')[0];
+
+  const row = S.rows.find(r => r._id === LS.pendingRowId);
+  const snapshot = {};
+  if (row) {
+    S.cols.forEach(c => { snapshot[c.id] = row[c.id] || ''; });
+    snapshot._colNames = S.cols.map(c => ({ id: c.id, name: c.name }));
+  }
+  LS.records.push({
+    _lid: LS.nextLendId++, barcode: LS.pendingBarcode, itemSnapshot: snapshot,
+    borrower, lentDate, dueDate, returnDate: null, status: 'lent',
+    createdAt: new Date().toISOString(), returnedAt: null,
+    lentBy: AppSettings.operatorName || '', returnedBy: ''
+  });
+  saveLendingToStorage();
+  const msg = borrower ? `「${borrower}」への貸出しを記録しました` : '貸出しを記録しました';
+  showLendingSuccess(msg);
+  resetLendingScanArea();
+  renderLendingLists();
+}
+
+function submitReturn() {
+  let returnDate = document.getElementById('return-date').value;
+  if (AppSettings.lendingRequireDates && !returnDate) { showAppError('E011'); return; }
+  if (!returnDate) returnDate = new Date().toISOString().split('T')[0];
+  const record = LS.records.find(r => r.barcode === LS.pendingBarcode && r.status !== 'returned');
+  if (!record) { showAppError('E012'); return; }
+  record.returnDate = returnDate;
+  record.status = 'returned';
+  record.returnedAt = new Date().toISOString();
+  record.returnedBy = AppSettings.operatorName || '';
+  saveLendingToStorage();
+  const msg = record.borrower ? `「${record.borrower}」からの返却を記録しました` : '返却を記録しました';
+  showLendingSuccess(msg);
+  resetLendingScanArea();
+  renderLendingLists();
+}
+
+function cancelLendingForm() { resetLendingScanArea(); }
+
+function resetLendingScanArea() {
+  document.getElementById('lending-item-result').classList.add('hidden');
+  document.getElementById('lending-form').classList.add('hidden');
+  document.getElementById('return-form').classList.add('hidden');
+  const input = document.getElementById('lending-barcode-input');
+  input.value = '';
+  input.focus();
+  LS.pendingBarcode = null;
+  LS.pendingRowId = null;
+}
+
+function showLendingSuccess(message) {
+  const old = document.getElementById('lending-success-msg');
+  if (old) old.remove();
+  const div = document.createElement('div');
+  div.className = 'lending-success'; div.id = 'lending-success-msg';
+  div.textContent = '✅ ' + message;
+  const scanArea = document.getElementById('lending-scan-area');
+  scanArea.parentNode.insertBefore(div, scanArea.nextSibling);
+  setTimeout(() => { const el = document.getElementById('lending-success-msg'); if (el) el.remove(); }, 4000);
+}
+
+// ============================================================
+//  LENDING: LIST RENDERING
+// ============================================================
+function renderLendingLists() {
+  updateOverdueStatuses();
+  renderCurrentLendings();
+  renderLendingHistory();
+  updateOverdueBadge();
+}
+
+function updateOverdueStatuses() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  LS.records.forEach(r => {
+    if (r.status === 'returned') return;
+    r.status = (r.dueDate && new Date(r.dueDate) < today) ? 'overdue' : 'lent';
+  });
+}
+
+function buildItemSummary(snapshot) {
+  if (!snapshot || !snapshot._colNames) return '-';
+  return snapshot._colNames.slice(0, 3).map(c => snapshot[c.id] || '').filter(Boolean).join(' / ');
+}
+
+function renderCurrentLendings() {
+  const active = LS.records.filter(r => r.status === 'lent' || r.status === 'overdue');
+  active.sort((a, b) => {
+    if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+    if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+    return new Date(a.dueDate) - new Date(b.dueDate);
+  });
+
+  document.getElementById('lending-current-thead').innerHTML =
+    '<tr><th>バーコード</th><th>品目</th><th>貸出先</th><th>貸出日</th><th>返却予定</th><th>操作者</th><th>状態</th></tr>';
+  const tbody = document.getElementById('lending-current-tbody');
+  tbody.innerHTML = '';
+
+  if (!active.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td'); td.colSpan = 7;
+    td.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><p>現在貸出中の品目はありません</p></div>';
+    tr.appendChild(td); tbody.appendChild(tr); return;
+  }
+  const start = (LS.lendPage - 1) * LS.lendPerPage;
+  active.slice(start, start + LS.lendPerPage).forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.status === 'overdue') tr.className = 'lending-row-overdue';
+    appendTd(tr, r.barcode, "font-family:'Courier New',monospace;font-size:12px;");
+    appendTd(tr, buildItemSummary(r.itemSnapshot), 'font-size:12px;');
+    appendTd(tr, r.borrower || '-', 'font-weight:600;');
+    appendTd(tr, r.lentDate);
+    const tdDue = appendTd(tr, r.dueDate || '-');
+    if (r.status === 'overdue') { tdDue.style.color = '#e74c3c'; tdDue.style.fontWeight = '700'; }
+    appendTd(tr, r.lentBy || '-', 'font-size:12px;');
+    const tdSt = document.createElement('td');
+    tdSt.innerHTML = r.status === 'overdue'
+      ? '<span class="item-status-badge badge-overdue">延滞</span>'
+      : '<span class="item-status-badge badge-lent">貸出中</span>';
+    tr.appendChild(tdSt);
+    tbody.appendChild(tr);
+  });
+  renderLendingPagination('lending-current-pagination', active.length, LS.lendPage, p => { LS.lendPage = p; renderCurrentLendings(); });
+}
+
+function renderLendingHistory() {
+  const all = [...LS.records].reverse();
+  document.getElementById('lending-history-thead').innerHTML =
+    '<tr><th>バーコード</th><th>品目</th><th>貸出先</th><th>貸出日</th><th>返却予定</th><th>返却日</th><th>操作者</th><th>記録時刻</th><th>状態</th></tr>';
+  const tbody = document.getElementById('lending-history-tbody');
+  tbody.innerHTML = '';
+  if (!all.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td'); td.colSpan = 9;
+    td.innerHTML = '<div class="empty-state"><span class="empty-icon">📜</span><p>貸出し履歴はありません</p></div>';
+    tr.appendChild(td); tbody.appendChild(tr); return;
+  }
+  const start = (LS.histPage - 1) * LS.lendPerPage;
+  all.slice(start, start + LS.lendPerPage).forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.status === 'overdue') tr.className = 'lending-row-overdue';
+    appendTd(tr, r.barcode, "font-family:'Courier New',monospace;font-size:12px;");
+    appendTd(tr, buildItemSummary(r.itemSnapshot), 'font-size:12px;');
+    appendTd(tr, r.borrower || '-');
+    appendTd(tr, r.lentDate);
+    appendTd(tr, r.dueDate || '-');
+    appendTd(tr, r.returnDate || '-');
+    // 操作者: 返却済みなら返却者、それ以外は貸出者
+    const operator = r.status === 'returned' ? (r.returnedBy || r.lentBy || '-') : (r.lentBy || '-');
+    appendTd(tr, operator, 'font-size:12px;');
+    // 記録時刻
+    appendTd(tr, formatTimestamp(r.status === 'returned' ? r.returnedAt : r.createdAt), 'font-size:11px;white-space:nowrap;');
+    const tdSt = document.createElement('td');
+    const bm = { lent: 'badge-lent">貸出中', overdue: 'badge-overdue">延滞', returned: 'badge-returned">返却済' };
+    tdSt.innerHTML = '<span class="item-status-badge ' + (bm[r.status] || '') + '</span>';
+    tr.appendChild(tdSt);
+    tbody.appendChild(tr);
+  });
+  renderLendingPagination('lending-history-pagination', all.length, LS.histPage, p => { LS.histPage = p; renderLendingHistory(); });
+}
+
+function appendTd(tr, text, style) {
+  const td = document.createElement('td');
+  td.textContent = text || '';
+  if (style) td.style.cssText = style;
+  tr.appendChild(td);
+  return td;
+}
+
+function formatTimestamp(iso) {
+  if (!iso) return '-';
+  try {
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return '-'; }
+}
+
+function renderLendingPagination(containerId, totalItems, currentPage, onPageChange) {
+  const pg = document.getElementById(containerId);
+  pg.innerHTML = '';
+  const total = Math.ceil(totalItems / LS.lendPerPage);
+  if (total <= 1) return;
+  const prev = mkBtn('◀', 'pg-btn', () => onPageChange(Math.max(1, currentPage - 1)));
+  prev.disabled = currentPage === 1;
+  pg.appendChild(prev);
+  for (let i = 1; i <= total; i++) {
+    const b = mkBtn(i, 'pg-btn' + (i === currentPage ? ' active' : ''), () => onPageChange(i));
+    pg.appendChild(b);
+  }
+  const next = mkBtn('▶', 'pg-btn', () => onPageChange(Math.min(total, currentPage + 1)));
+  next.disabled = currentPage === total;
+  pg.appendChild(next);
+}
+
+function updateOverdueBadge() {
+  const count = LS.records.filter(r => r.status === 'overdue').length;
+  const badge = document.getElementById('overdue-badge');
+  if (!badge) return;
+  badge.classList.toggle('hidden', count === 0);
+  const el = document.getElementById('overdue-count');
+  if (el) el.textContent = count;
+}
+
+function switchLendingView(mode) {
+  LS.viewMode = mode;
+  const cb = document.getElementById('view-current-btn');
+  const hb = document.getElementById('view-history-btn');
+  const cv = document.getElementById('lending-current-view');
+  const hv = document.getElementById('lending-history-view');
+  if (mode === 'current') {
+    cb.className = 'btn btn-sm view-active'; hb.className = 'btn btn-sm btn-secondary';
+    cv.classList.remove('hidden'); hv.classList.add('hidden');
+  } else {
+    hb.className = 'btn btn-sm view-active'; cb.className = 'btn btn-sm btn-secondary';
+    hv.classList.remove('hidden'); cv.classList.add('hidden');
+  }
+}
+
+// ============================================================
+//  LENDING: CSV EXPORT
+// ============================================================
+function exportLendingCSV() {
+  if (!LS.records.length) { showAppError('E013'); return; }
+  const escC = v => { const s = String(v ?? ''); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g,'""')}"` : s; };
+  const stLbl = { lent: '貸出中', overdue: '延滞', returned: '返却済' };
+  const lines = [
+    ['バーコード','品目情報','貸出先','貸出日','返却予定日','返却日','操作者（貸出）','操作者（返却）','記録時刻','返却時刻','状態'].map(escC).join(','),
+    ...LS.records.map(r => [
+      escC(r.barcode), escC(buildItemSummary(r.itemSnapshot)), escC(r.borrower),
+      escC(r.lentDate), escC(r.dueDate), escC(r.returnDate || ''),
+      escC(r.lentBy || ''), escC(r.returnedBy || ''),
+      escC(r.createdAt || ''), escC(r.returnedAt || ''),
+      escC(stLbl[r.status] || r.status)
+    ].join(','))
+  ];
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'lending-history.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+//  FEATURE 1: CAMERA BARCODE SCANNER
+// ============================================================
+let _cameraStream = null;
+let _scanInterval = null;
+
+async function openCameraScanner() {
+  const overlay = document.getElementById('camera-overlay');
+  const video = document.getElementById('camera-video');
+
+  // Check for BarcodeDetector support
+  if (!('BarcodeDetector' in window)) {
+    showToast('warning', 'この環境ではカメラスキャンに対応していません。USBバーコードリーダーをご利用ください。');
+    return;
+  }
+
+  try {
+    _cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    video.srcObject = _cameraStream;
+    overlay.classList.remove('hidden');
+
+    const detector = new BarcodeDetector({
+      formats: ['code_128', 'code_39', 'qr_code', 'ean_13', 'ean_8', 'upc_a', 'upc_e']
+    });
+
+    _scanInterval = setInterval(async () => {
+      if (video.readyState < 2) return;
+      try {
+        const barcodes = await detector.detect(video);
+        if (barcodes.length > 0) {
+          const val = barcodes[0].rawValue;
+          if (val) {
+            document.getElementById('lending-barcode-input').value = val;
+            closeCameraScanner();
+            lookupBarcode();
+          }
+        }
+      } catch(e) { /* ignore detection errors */ }
+    }, 250);
+
+  } catch(e) {
+    if (e.name === 'NotAllowedError') {
+      showToast('error', 'カメラへのアクセスが拒否されました。ブラウザの設定でカメラの許可を確認してください。');
+    } else if (e.name === 'NotFoundError') {
+      showToast('error', 'カメラが見つかりません。USBバーコードリーダーをご利用ください。');
+    } else {
+      showToast('error', 'カメラの起動に失敗しました: ' + e.message);
+    }
+  }
+}
+
+function closeCameraScanner() {
+  if (_scanInterval) { clearInterval(_scanInterval); _scanInterval = null; }
+  if (_cameraStream) {
+    _cameraStream.getTracks().forEach(t => t.stop());
+    _cameraStream = null;
+  }
+  const video = document.getElementById('camera-video');
+  if (video) video.srcObject = null;
+  document.getElementById('camera-overlay').classList.add('hidden');
+}
+
+// ============================================================
+//  FEATURE 2: FULL BACKUP / RESTORE
+// ============================================================
+function exportFullBackup() {
+  const backup = {
+    _format: 'barcode-app-backup',
+    _version: 1,
+    _createdAt: new Date().toISOString(),
+    mainData: {
+      cols: S.cols, rows: S.rows, nextId: S.nextId,
+      bcCol: S.bcCol, bcFormat: S.bcFormat, bcShowValue: S.bcShowValue,
+      printCols: S.printCols, labelLayout: S.labelLayout,
+      labelFontSize: S.labelFontSize, labelMaxLines: S.labelMaxLines,
+      perPage: S.perPage, labelPreset: S.labelPreset || 'a4-24'
+    },
+    lendingData: { records: LS.records, nextLendId: LS.nextLendId },
+    settings: { ...AppSettings }
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+  a.href = URL.createObjectURL(blob);
+  a.download = `barcode-backup-${ts}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast('success', 'バックアップファイルを保存しました');
+}
+
+async function importFullBackup(file) {
+  if (!file) return;
+  try {
+    const text = await readFileAsText(file, 'UTF-8');
+    const data = JSON.parse(text);
+    if (data._format !== 'barcode-app-backup') {
+      showToast('error', 'バックアップファイルの形式が正しくありません');
+      return;
+    }
+    if (!confirm('現在のデータをバックアップの内容で上書きしますか？\nこの操作は元に戻せません。')) return;
+
+    // Restore main data
+    if (data.mainData) {
+      const m = data.mainData;
+      S.cols = m.cols || []; S.rows = m.rows || []; S.nextId = m.nextId || 1;
+      S.bcCol = m.bcCol || ''; S.bcFormat = m.bcFormat || 'CODE128';
+      S.bcShowValue = m.bcShowValue || false;
+      S.printCols = m.printCols || []; S.labelLayout = m.labelLayout || 'bc-top';
+      S.labelFontSize = m.labelFontSize || 'auto'; S.labelMaxLines = m.labelMaxLines || 3;
+      S.perPage = m.perPage || 20; S.labelPreset = m.labelPreset || 'a4-24';
+    }
+
+    // Restore lending data
+    if (data.lendingData) {
+      LS.records = data.lendingData.records || [];
+      LS.nextLendId = data.lendingData.nextLendId || 1;
+    }
+
+    // Restore settings
+    if (data.settings) {
+      if (typeof data.settings.autoSave === 'boolean') AppSettings.autoSave = data.settings.autoSave;
+      if (typeof data.settings.confirmClose === 'boolean') AppSettings.confirmClose = data.settings.confirmClose;
+      if (typeof data.settings.maxColumns === 'number') AppSettings.maxColumns = data.settings.maxColumns;
+      if (typeof data.settings.darkMode === 'boolean') { AppSettings.darkMode = data.settings.darkMode; applyDarkMode(); }
+      saveSettings();
+    }
+
+    S.page = 1; S.editing = null; S.selected = new Set();
+    if (S.cols.length) unlockDataTabs();
+    renderAll();
+    doSaveToStorage();
+    changeLabelPreset(S.labelPreset || 'a4-24');
+    closeSettings();
+    showToast('success', `バックアップを復元しました（${S.rows.length} 行、貸出 ${LS.records.length} 件）`);
+  } catch(e) {
+    showToast('error', 'バックアップの読み込みに失敗しました: ' + e.message);
+  }
+}
+
+// ============================================================
+//  FEATURE 3: LABEL SIZE PRESETS
+// ============================================================
+const LABEL_PRESETS = {
+  'a4-24': { cols: 3, rows: 8, w: 63.5, h: 33.9, gap: 2.5, marginTop: 13, marginSide: 7.2 },
+  'a4-44': { cols: 4, rows: 11, w: 48.3, h: 25.4, gap: 2, marginTop: 8.8, marginSide: 4.7 },
+  'a4-21': { cols: 3, rows: 7, w: 63.5, h: 38.1, gap: 2.5, marginTop: 15.2, marginSide: 7.2 },
+  'a4-12': { cols: 2, rows: 6, w: 84.7, h: 42.3, gap: 2, marginTop: 8.8, marginSide: 18.8 },
+  'a4-10': { cols: 2, rows: 5, w: 86.4, h: 50.8, gap: 6, marginTop: 21.9, marginSide: 15.6 },
+  'a4-65': { cols: 5, rows: 13, w: 38.1, h: 21.2, gap: 2.5, marginTop: 11, marginSide: 4.7 },
+};
+
+// Active label config
+let labelConfig = { ...LABEL_PRESETS['a4-24'] };
+
+function changeLabelPreset(preset) {
+  S.labelPreset = preset;
+  const customGrid = document.getElementById('label-custom-grid');
+  if (preset === 'custom') {
+    customGrid.classList.remove('hidden');
+    applyCustomLabel();
+  } else {
+    customGrid.classList.add('hidden');
+    if (LABEL_PRESETS[preset]) {
+      labelConfig = { ...LABEL_PRESETS[preset] };
+    }
+  }
+  document.getElementById('label-preset-select').value = preset;
+  updateLabelCSS();
+  saveToStorage();
+}
+
+function applyCustomLabel() {
+  const cols = parseInt(document.getElementById('custom-cols').value) || 3;
+  const rows = parseInt(document.getElementById('custom-rows').value) || 8;
+  const w = parseFloat(document.getElementById('custom-w').value) || 63.5;
+  const totalW = cols * w + (cols - 1) * 2.5;
+  const marginSide = Math.max(0, (210 - totalW) / 2);
+  const h = (297 - 26) / rows;
+  labelConfig = { cols, rows, w, h, gap: 2.5, marginTop: 13, marginSide };
+  updateLabelCSS();
+}
+
+function updateLabelCSS() {
+  let style = document.getElementById('dynamic-label-css');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'dynamic-label-css';
+    document.head.appendChild(style);
+  }
+  const c = labelConfig;
+  const labelsPerPage = c.cols * c.rows;
+  style.textContent = `
+    .label-grid {
+      grid-template-columns: repeat(${c.cols}, 1fr) !important;
+      grid-template-rows: repeat(${c.rows}, 1fr) !important;
+    }
+    @media print {
+      @page { size: A4 portrait; margin: ${c.marginTop}mm ${c.marginSide}mm; }
+      .print-sheet {
+        grid-template-columns: repeat(${c.cols}, ${c.w}mm) !important;
+        grid-auto-rows: ${c.h}mm !important;
+        column-gap: ${c.gap}mm !important;
+      }
+      .print-label {
+        width: ${c.w}mm !important;
+        height: ${c.h}mm !important;
+      }
+    }
+  `;
+  // Update preview title
+  const title = document.getElementById('pv-title');
+  if (title) title.textContent = `🖨 印刷プレビュー — A4 / ${labelsPerPage}面ラベル（${c.cols}列×${c.rows}行）`;
+}
+
+function getLabelsPerPage() {
+  return labelConfig.cols * labelConfig.rows;
+}
+
+// ============================================================
+//  FEATURE 4: PWA REGISTRATION
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      console.log('Service Worker: 登録成功', reg.scope);
+    }).catch(err => {
+      console.warn('Service Worker: 登録失敗', err.message);
+    });
+  });
+}
+
+// ============================================================
+//  FEATURE 5: PRINT GUIDE MODAL
+// ============================================================
+function showPrintGuide() {
+  document.getElementById('print-guide-overlay').classList.remove('hidden');
+}
+
+function closePrintGuide() {
+  document.getElementById('print-guide-overlay').classList.add('hidden');
+}
+
+function doPrintDirect() {
+  // This is the actual print execution (called after guide confirmation)
+  _executePrint();
+}
+
+// ============================================================
+//  FEATURE 6: FILE SYSTEM DATA SAVE
+// ============================================================
+async function saveDataToFile() {
+  const data = {
+    _format: 'barcode-app-data',
+    _savedAt: new Date().toISOString(),
+    mainData: {
+      cols: S.cols, rows: S.rows, nextId: S.nextId,
+      bcCol: S.bcCol, bcFormat: S.bcFormat, bcShowValue: S.bcShowValue,
+      printCols: S.printCols, labelLayout: S.labelLayout,
+      labelFontSize: S.labelFontSize, labelMaxLines: S.labelMaxLines,
+      perPage: S.perPage, labelPreset: S.labelPreset || 'a4-24'
+    },
+    lendingData: { records: LS.records, nextLendId: LS.nextLendId }
+  };
+  const json = JSON.stringify(data, null, 2);
+
+  // Try File System Access API (modern browsers)
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'barcode-data.json',
+        types: [{ description: 'JSON ファイル', accept: { 'application/json': ['.json'] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      showToast('success', 'データをファイルに保存しました');
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return; // User cancelled
+    }
+  }
+
+  // Fallback: download as file
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'barcode-data.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast('success', 'データをファイルとしてダウンロードしました');
+}
+
+// ============================================================
+//  FEATURE 7: QR CODE SUPPORT
+// ============================================================
+function generateQRCodeSVG(data, size) {
+  if (!data || typeof qrcode !== 'function') return null;
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(data);
+    qr.make();
+    const modules = qr.getModuleCount();
+    const cellSize = (size || 100) / modules;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size || 100}" height="${size || 100}" viewBox="0 0 ${modules} ${modules}">`;
+    svg += `<rect width="${modules}" height="${modules}" fill="white"/>`;
+    for (let r = 0; r < modules; r++) {
+      for (let c = 0; c < modules; c++) {
+        if (qr.isDark(r, c)) {
+          svg += `<rect x="${c}" y="${r}" width="1" height="1" fill="black"/>`;
+        }
+      }
+    }
+    svg += '</svg>';
+    return svg;
+  } catch(e) {
+    console.warn('QR code generation failed:', e.message);
+    return null;
+  }
+}
+
+function createQRCodeElement(data, size) {
+  const svgStr = generateQRCodeSVG(data, size || 100);
+  if (!svgStr) return null;
+  const div = document.createElement('div');
+  div.innerHTML = svgStr;
+  return div.firstChild;
+}
+
+// ============================================================
+//  FEATURE 8: DARK MODE
+// ============================================================
+function toggleDarkMode() {
+  AppSettings.darkMode = !AppSettings.darkMode;
+  applyDarkMode();
+  saveSettings();
+}
+
+function applyDarkMode() {
+  document.body.classList.toggle('dark', !!AppSettings.darkMode);
+  const btn = document.getElementById('dark-toggle-btn');
+  if (btn) btn.textContent = AppSettings.darkMode ? '☀️' : '🌙';
+  const chk = document.getElementById('setting-dark-mode');
+  if (chk) chk.checked = !!AppSettings.darkMode;
+}
+
+// Load dark mode on startup
+(function initDarkMode() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.darkMode) { AppSettings.darkMode = true; applyDarkMode(); }
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "profiles": [
+    {
+      "id": "custom_20260224232419",
+      "type": "custom",
+      "name": "カスタム",
+      "data_file": "/Volumes/AI_SSD/バーコード管理アプリ/PassportManager/custom_20260224232419_data.json"
+    }
+  ]
+}

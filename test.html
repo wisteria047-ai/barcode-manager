@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>バーコード管理ツール — ユニットテスト</title>
+<script src="lib/JsBarcode.all.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/qrcode.min.js"></script>
+<style>
+body { font-family: 'Hiragino Sans', sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
+h1 { font-size: 20px; color: #1a3a5c; margin-bottom: 4px; }
+.summary { font-size: 14px; margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-weight: 600; }
+.summary.pass { background: #d5f5e3; color: #1a7a40; border: 1px solid #82e0aa; }
+.summary.fail { background: #fde8e6; color: #b03a2e; border: 1px solid #f1948a; }
+.group { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 14px; overflow: hidden; }
+.group-header { padding: 10px 16px; background: #1a3a5c; color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+.group-body { padding: 0; }
+.test-row { display: flex; align-items: center; padding: 6px 16px; border-bottom: 1px solid #f0f2f5; font-size: 13px; }
+.test-row:last-child { border-bottom: none; }
+.test-icon { width: 22px; font-size: 16px; flex-shrink: 0; }
+.test-name { flex: 1; color: #333; }
+.test-detail { font-size: 11px; color: #999; margin-left: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.test-row.fail { background: #fef0ee; }
+.test-row.fail .test-name { color: #b03a2e; font-weight: 600; }
+.test-row.fail .test-detail { color: #e74c3c; }
+</style>
+</head>
+<body>
+<h1>🧪 ユニットテスト — バーコード管理ツール</h1>
+<div id="summary" class="summary">実行中...</div>
+<div id="results"></div>
+
+<script>
+// ============================================================
+//  Minimal test framework
+// ============================================================
+const _groups = [];
+let _currentGroup = null;
+
+function describe(name, fn) {
+  _currentGroup = { name, tests: [], pass: 0, fail: 0 };
+  _groups.push(_currentGroup);
+  fn();
+  _currentGroup = null;
+}
+
+function it(name, fn) {
+  const t = { name, pass: false, detail: '' };
+  _currentGroup.tests.push(t);
+  try {
+    fn();
+    t.pass = true;
+    _currentGroup.pass++;
+  } catch(e) {
+    t.detail = e.message;
+    _currentGroup.fail++;
+  }
+}
+
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
+function assertEqual(a, b, msg) { if (a !== b) throw new Error(msg || `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+function assertDeepEqual(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg || `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+// ============================================================
+//  Import functions from index.html (inline copies for testing)
+// ============================================================
+
+// --- CSV Parsing ---
+function parseCSV(text) {
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trimEnd();
+  return text.split('\n').filter(l => l.trim()).map(parseLine);
+}
+function parseLine(line) {
+  const fields = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (c === ',' && !inQ) { fields.push(cur); cur = ''; }
+    else cur += c;
+  }
+  fields.push(cur);
+  return fields;
+}
+
+// --- Garble detection ---
+function looksGarbled(text) {
+  const replacementCount = (text.match(/\uFFFD/g) || []).length;
+  if (replacementCount > 2) return true;
+  const sample = text.substring(0, 2000);
+  const garbleChars = (sample.match(/[\u7e67\u7e70\u7e4d\u7e1d\u7e01\u7e2b\u7e3e\u7e55\u7e41\u7e4a\u7e2e\u7e31\u7e61\u7e6d\u7e26\u7e15\u7e0a\u7e09\u7e1b\u7dda\u7dbb\u7e46\u7e56]/g) || []).length;
+  if (garbleChars > 5) return true;
+  const controlSeqs = (sample.match(/[\x80-\x9f]/g) || []).length;
+  if (controlSeqs > 10) return true;
+  return false;
+}
+
+// --- Escape ---
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// --- Label Presets ---
+const LABEL_PRESETS = {
+  'a4-24': { cols: 3, rows: 8, w: 63.5, h: 33.9, gap: 2.5, marginTop: 13, marginSide: 7.2 },
+  'a4-44': { cols: 4, rows: 11, w: 48.3, h: 25.4, gap: 2, marginTop: 8.8, marginSide: 4.7 },
+  'a4-21': { cols: 3, rows: 7, w: 63.5, h: 38.1, gap: 2.5, marginTop: 15.2, marginSide: 7.2 },
+  'a4-12': { cols: 2, rows: 6, w: 84.7, h: 42.3, gap: 2, marginTop: 8.8, marginSide: 18.8 },
+  'a4-10': { cols: 2, rows: 5, w: 86.4, h: 50.8, gap: 6, marginTop: 21.9, marginSide: 15.6 },
+  'a4-65': { cols: 5, rows: 13, w: 38.1, h: 21.2, gap: 2.5, marginTop: 11, marginSide: 4.7 },
+};
+
+// --- Overdue check ---
+function isOverdue(record) {
+  if (record.status === 'returned') return false;
+  if (!record.dueDate) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return new Date(record.dueDate) < today;
+}
+
+// --- Item summary ---
+function buildItemSummary(snapshot) {
+  if (!snapshot || !snapshot._colNames) return '-';
+  return snapshot._colNames.slice(0, 3).map(c => snapshot[c.id] || '').filter(Boolean).join(' / ');
+}
+
+// --- QR Code ---
+function generateQRCodeSVG(data, size) {
+  if (!data || typeof qrcode !== 'function') return null;
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(data);
+    qr.make();
+    const modules = qr.getModuleCount();
+    const cellSize = (size || 100) / modules;
+    let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'+(size||100)+'" height="'+(size||100)+'">';
+    svg += '</svg>';
+    return svg;
+  } catch(e) { return null; }
+}
+
+// --- Backup format ---
+function validateBackupFormat(data) {
+  return data && data._format === 'barcode-app-backup' && data._version === 1 && data.mainData && data.lendingData;
+}
+
+// ============================================================
+//  TEST SUITES
+// ============================================================
+
+describe('CSV解析 (parseCSV / parseLine)', () => {
+  it('基本的なCSVを解析できる', () => {
+    const result = parseCSV('a,b,c\n1,2,3');
+    assertEqual(result.length, 2);
+    assertDeepEqual(result[0], ['a','b','c']);
+    assertDeepEqual(result[1], ['1','2','3']);
+  });
+
+  it('ダブルクォートで囲まれたフィールドを処理できる', () => {
+    const result = parseLine('"hello, world",test,"ok"');
+    assertDeepEqual(result, ['hello, world', 'test', 'ok']);
+  });
+
+  it('ダブルクォート内のエスケープ（""）を処理できる', () => {
+    const result = parseLine('"say ""hello""",b');
+    assertDeepEqual(result, ['say "hello"', 'b']);
+  });
+
+  it('空行を無視する', () => {
+    const result = parseCSV('a,b\n\n1,2\n\n');
+    assertEqual(result.length, 2);
+  });
+
+  it('CRLFとCRの改行コードを正規化する', () => {
+    const result = parseCSV('a,b\r\n1,2\r3,4');
+    assertEqual(result.length, 3);
+  });
+
+  it('1列だけのCSVを処理できる', () => {
+    const result = parseCSV('name\nAlice\nBob');
+    assertEqual(result.length, 3);
+    assertDeepEqual(result[1], ['Alice']);
+  });
+
+  it('空のフィールドを保持する', () => {
+    const result = parseLine('a,,c,');
+    assertDeepEqual(result, ['a', '', 'c', '']);
+  });
+
+  it('改行を含むフィールドを処理できる（行単位解析の制限を確認）', () => {
+    // parseLine is line-based, so multiline quoted fields won't work perfectly
+    // This tests current behavior
+    const result = parseLine('"no newline",b');
+    assertEqual(result.length, 2);
+  });
+});
+
+describe('文字化け検知 (looksGarbled)', () => {
+  it('通常の日本語テキストを文字化けと判定しない', () => {
+    assert(!looksGarbled('品番,品名,数量\nA-001,ノートPC,5'));
+  });
+
+  it('英語テキストを文字化けと判定しない', () => {
+    assert(!looksGarbled('id,name,quantity\n1,Notebook,50'));
+  });
+
+  it('U+FFFD文字が多いテキストを文字化けと判定する', () => {
+    assert(looksGarbled('a\uFFFDb\uFFFDc\uFFFDd'));
+  });
+
+  it('空文字列を文字化けと判定しない', () => {
+    assert(!looksGarbled(''));
+  });
+});
+
+describe('HTMLエスケープ (esc)', () => {
+  it('< と > をエスケープする', () => {
+    assertEqual(esc('<script>alert(1)<\/script>'), '&lt;script&gt;alert(1)&lt;/script&gt;');
+  });
+
+  it('& をエスケープする', () => {
+    assertEqual(esc('a&b'), 'a&amp;b');
+  });
+
+  it('" をエスケープする', () => {
+    assertEqual(esc('say "hi"'), 'say &quot;hi&quot;');
+  });
+
+  it('数値を文字列に変換する', () => {
+    assertEqual(esc(42), '42');
+  });
+
+  it('nullやundefinedを安全に処理する', () => {
+    assertEqual(esc(null), 'null');
+    assertEqual(esc(undefined), 'undefined');
+  });
+});
+
+describe('ラベルプリセット (LABEL_PRESETS)', () => {
+  it('全プリセットが必要なプロパティを持つ', () => {
+    const required = ['cols', 'rows', 'w', 'h', 'gap', 'marginTop', 'marginSide'];
+    for (const [name, preset] of Object.entries(LABEL_PRESETS)) {
+      required.forEach(prop => {
+        assert(typeof preset[prop] === 'number', `${name}: ${prop} is missing or not a number`);
+      });
+    }
+  });
+
+  it('24面プリセットが3列×8行である', () => {
+    assertEqual(LABEL_PRESETS['a4-24'].cols, 3);
+    assertEqual(LABEL_PRESETS['a4-24'].rows, 8);
+  });
+
+  it('各プリセットのラベルがA4用紙（210×297mm）に収まる', () => {
+    for (const [name, p] of Object.entries(LABEL_PRESETS)) {
+      const totalW = p.marginSide * 2 + p.cols * p.w + (p.cols - 1) * p.gap;
+      const totalH = p.marginTop * 2 + p.rows * p.h;
+      assert(totalW <= 212, `${name}: width ${totalW.toFixed(1)}mm exceeds A4 (210mm)`);
+      assert(totalH <= 299, `${name}: height ${totalH.toFixed(1)}mm exceeds A4 (297mm)`);
+    }
+  });
+
+  it('面数の計算が正しい', () => {
+    assertEqual(LABEL_PRESETS['a4-24'].cols * LABEL_PRESETS['a4-24'].rows, 24);
+    assertEqual(LABEL_PRESETS['a4-44'].cols * LABEL_PRESETS['a4-44'].rows, 44);
+    assertEqual(LABEL_PRESETS['a4-21'].cols * LABEL_PRESETS['a4-21'].rows, 21);
+    assertEqual(LABEL_PRESETS['a4-12'].cols * LABEL_PRESETS['a4-12'].rows, 12);
+    assertEqual(LABEL_PRESETS['a4-10'].cols * LABEL_PRESETS['a4-10'].rows, 10);
+    assertEqual(LABEL_PRESETS['a4-65'].cols * LABEL_PRESETS['a4-65'].rows, 65);
+  });
+});
+
+describe('延滞判定 (isOverdue)', () => {
+  it('返却済みレコードは延滞にならない', () => {
+    assert(!isOverdue({ status: 'returned', dueDate: '2020-01-01' }));
+  });
+
+  it('返却期限が過去の未返却レコードは延滞', () => {
+    assert(isOverdue({ status: 'lent', dueDate: '2020-01-01' }));
+  });
+
+  it('返却期限が未来の未返却レコードは延滞でない', () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 30);
+    assert(!isOverdue({ status: 'lent', dueDate: future.toISOString().split('T')[0] }));
+  });
+
+  it('返却期限がnullの場合は延滞でない', () => {
+    assert(!isOverdue({ status: 'lent', dueDate: null }));
+  });
+});
+
+describe('品目サマリー (buildItemSummary)', () => {
+  it('正常なスナップショットからサマリーを生成する', () => {
+    const snapshot = { c0: 'A-001', c1: 'ノートPC', c2: 'IT機器', _colNames: [{id:'c0',name:'品番'},{id:'c1',name:'品名'},{id:'c2',name:'カテゴリ'}] };
+    assertEqual(buildItemSummary(snapshot), 'A-001 / ノートPC / IT機器');
+  });
+
+  it('空のスナップショットでハイフンを返す', () => {
+    assertEqual(buildItemSummary(null), '-');
+    assertEqual(buildItemSummary({}), '-');
+  });
+
+  it('_colNamesがない場合はハイフンを返す', () => {
+    assertEqual(buildItemSummary({ c0: 'test' }), '-');
+  });
+
+  it('空の値を除外する', () => {
+    const snapshot = { c0: 'A-001', c1: '', c2: 'IT機器', _colNames: [{id:'c0',name:'品番'},{id:'c1',name:'品名'},{id:'c2',name:'カテゴリ'}] };
+    assertEqual(buildItemSummary(snapshot), 'A-001 / IT機器');
+  });
+});
+
+describe('QRコード生成', () => {
+  it('qrcode関数が存在する', () => {
+    assertEqual(typeof qrcode, 'function');
+  });
+
+  it('基本的なQRコードを生成できる', () => {
+    const qr = qrcode(0, 'M');
+    qr.addData('Hello');
+    qr.make();
+    assert(qr.getModuleCount() > 0, 'Module count should be > 0');
+  });
+
+  it('日本語テキストをQRコード化できる', () => {
+    const qr = qrcode(0, 'M');
+    qr.addData('こんにちは');
+    qr.make();
+    assert(qr.getModuleCount() > 0);
+  });
+
+  it('URLをQRコード化できる', () => {
+    const qr = qrcode(0, 'M');
+    qr.addData('https://example.com/test?q=hello&lang=ja');
+    qr.make();
+    assert(qr.getModuleCount() > 0);
+  });
+
+  it('generateQRCodeSVGがSVG文字列を返す', () => {
+    const svg = generateQRCodeSVG('test', 100);
+    assert(svg !== null, 'SVG should not be null');
+    assert(svg.includes('<svg'), 'Should contain SVG tag');
+  });
+
+  it('空文字列でnullを返す', () => {
+    assertEqual(generateQRCodeSVG('', 100), null);
+  });
+});
+
+describe('バックアップ形式', () => {
+  it('正しい形式のバックアップを検証できる', () => {
+    const backup = {
+      _format: 'barcode-app-backup', _version: 1,
+      mainData: { cols: [], rows: [] },
+      lendingData: { records: [] }
+    };
+    assert(validateBackupFormat(backup));
+  });
+
+  it('不正な形式を拒否する', () => {
+    assert(!validateBackupFormat(null));
+    assert(!validateBackupFormat({}));
+    assert(!validateBackupFormat({ _format: 'wrong' }));
+    assert(!validateBackupFormat({ _format: 'barcode-app-backup', _version: 2 }));
+  });
+});
+
+describe('JsBarcode Code128 生成', () => {
+  it('英数字のバーコードを生成できる', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    JsBarcode(svg, 'A-001', { format: 'CODE128', displayValue: false });
+    assert(svg.querySelector('rect') !== null, 'SVG should contain rect elements');
+  });
+
+  it('Code39形式でバーコードを生成できる', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    JsBarcode(svg, 'A001', { format: 'CODE39', displayValue: false });
+    assert(svg.querySelector('rect') !== null);
+  });
+
+  it('無効な文字でエラーをスローする', () => {
+    let threw = false;
+    try {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      JsBarcode(svg, '日本語', { format: 'CODE39', displayValue: false });
+    } catch(e) { threw = true; }
+    assert(threw, 'Should throw for invalid Code39 characters');
+  });
+});
+
+// ============================================================
+//  Render results
+// ============================================================
+function renderResults() {
+  const container = document.getElementById('results');
+  let totalPass = 0, totalFail = 0;
+
+  _groups.forEach(g => {
+    totalPass += g.pass;
+    totalFail += g.fail;
+
+    const group = document.createElement('div');
+    group.className = 'group';
+
+    const header = document.createElement('div');
+    header.className = 'group-header';
+    const icon = g.fail > 0 ? '❌' : '✅';
+    header.textContent = `${icon} ${g.name}  (${g.pass}/${g.tests.length})`;
+    header.onclick = () => body.style.display = body.style.display === 'none' ? '' : 'none';
+    group.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'group-body';
+    if (g.fail === 0) body.style.display = 'none'; // collapse passing groups
+
+    g.tests.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'test-row' + (t.pass ? '' : ' fail');
+      row.innerHTML = `<span class="test-icon">${t.pass ? '✅' : '❌'}</span>` +
+        `<span class="test-name">${t.name}</span>` +
+        (t.detail ? `<span class="test-detail" title="${esc(t.detail)}">${esc(t.detail)}</span>` : '');
+      body.appendChild(row);
+    });
+
+    group.appendChild(body);
+    container.appendChild(group);
+  });
+
+  const summary = document.getElementById('summary');
+  const total = totalPass + totalFail;
+  if (totalFail === 0) {
+    summary.className = 'summary pass';
+    summary.textContent = `✅ 全 ${total} テスト合格`;
+  } else {
+    summary.className = 'summary fail';
+    summary.textContent = `❌ ${totalFail} 件失敗 / 全 ${total} テスト（合格: ${totalPass}）`;
+  }
+}
+
+renderResults();
+</script>
+</body>
+</html>

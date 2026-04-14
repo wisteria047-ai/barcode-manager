@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "manager-app",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["manager_app.py"],
+      "port": 0
+    },
+    {
+      "name": "passport-manager-legacy",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["passport_manager.py"],
+      "port": 0
+    }
+  ]
+}
