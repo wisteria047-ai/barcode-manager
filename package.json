@@ -1,0 +1,41 @@
+{
+  "name": "barcode-manager",
+  "version": "3.0.0",
+  "description": "バーコード管理ツール — 物品管理・ラベル印刷・貸出/返却",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:electron": "electron-builder --win --x64",
+    "build:electron:mac": "electron-builder --mac",
+    "build:android": "cap sync android && cd android && ./gradlew assembleRelease",
+    "build:android:bundle": "cap sync android && cd android && ./gradlew bundleRelease",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android",
+    "cap:run": "cap run android"
+  },
+  "keywords": [
+    "barcode",
+    "inventory",
+    "label",
+    "electron"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "dexie": "^4.0.0",
+    "html5-qrcode": "^2.3.8",
+    "jsbarcode": "^3.11.6",
+    "jspdf": "^2.5.2",
+    "qrcode": "^1.5.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

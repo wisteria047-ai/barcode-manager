@@ -1,0 +1,11 @@
+{
+  "appId": "com.barcode.manager",
+  "appName": "Barcode Manager",
+  "webDir": "src",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

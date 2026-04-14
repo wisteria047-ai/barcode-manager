@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#2563eb"/>
+  <g fill="#ffffff">
+    <!-- Barcode bars -->
+    <rect x="96" y="128" width="16" height="200"/>
+    <rect x="128" y="128" width="8" height="200"/>
+    <rect x="152" y="128" width="24" height="200"/>
+    <rect x="192" y="128" width="8" height="200"/>
+    <rect x="216" y="128" width="16" height="200"/>
+    <rect x="248" y="128" width="24" height="200"/>
+    <rect x="288" y="128" width="8" height="200"/>
+    <rect x="312" y="128" width="16" height="200"/>
+    <rect x="344" y="128" width="8" height="200"/>
+    <rect x="368" y="128" width="24" height="200"/>
+    <rect x="408" y="128" width="8" height="200"/>
+    <!-- Text line -->
+    <rect x="96" y="352" width="320" height="4" rx="2" opacity="0.6"/>
+    <!-- Scan indicator -->
+    <rect x="80" y="192" width="352" height="3" rx="1.5" fill="#60a5fa"/>
+  </g>
+</svg>

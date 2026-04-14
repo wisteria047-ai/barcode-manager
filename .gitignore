@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+
+# Electron
+electron/dist/
+electron/out/
+
+# Android / Capacitor
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+
+# IDE / Tools
+.idea/
+.vscode/
+.claude/
+claude_code_prompt.md
+*.swp
+
+# Test
+coverage/

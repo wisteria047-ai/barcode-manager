@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="バーコード管理">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <title>バーコード管理ツール</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <h1 class="sr-only" data-i18n="app.title">バーコード管理ツール</h1>
+    <!-- Toolbar -->
+    <nav id="toolbar" role="toolbar" data-i18n-aria="aria.toolbar">
+      <button class="toolbar-btn toolbar-btn--primary" id="btn-import" data-i18n="toolbar.importCsv"></button>
+      <button class="toolbar-btn" id="btn-print" data-i18n="toolbar.printLabels"></button>
+      <div class="toolbar-separator"></div>
+      <button class="toolbar-btn" id="btn-status-returned" data-i18n="toolbar.returned" disabled></button>
+      <button class="toolbar-btn" id="btn-status-collected" data-i18n="toolbar.collected" disabled></button>
+      <div class="toolbar-separator"></div>
+      <button class="toolbar-btn" id="btn-edit-selected" data-i18n="toolbar.edit" disabled></button>
+      <button class="toolbar-btn" id="btn-delete-selected" data-i18n="toolbar.delete" disabled></button>
+      <div class="toolbar-spacer"></div>
+      <button class="toolbar-btn" id="btn-add-row" data-i18n="toolbar.addRow"></button>
+      <button class="toolbar-btn" id="btn-export" data-i18n="toolbar.export"></button>
+      <button class="toolbar-btn" id="btn-settings" data-i18n="toolbar.settings"></button>
+    </nav>
+
+    <!-- Main Content -->
+    <div id="main-content">
+      <!-- Table Area -->
+      <main id="table-area">
+        <!-- Filter Bar -->
+        <div id="filter-bar">
+          <label for="search-input" class="sr-only" data-i18n="aria.searchLabel">データを検索</label>
+          <input type="text" id="search-input" data-i18n-placeholder="filter.searchPlaceholder">
+          <label for="status-filter" class="sr-only" data-i18n="aria.statusFilterLabel">ステータスで絞り込み</label>
+          <select id="status-filter">
+            <option value="" data-i18n="filter.allStatuses"></option>
+            <option value="available" data-i18n="filter.statusAvailable"></option>
+            <option value="lent" data-i18n="filter.statusLent"></option>
+            <option value="returned" data-i18n="filter.statusReturned"></option>
+            <option value="collected" data-i18n="filter.statusCollected"></option>
+          </select>
+        </div>
+
+        <!-- Selection Bar -->
+        <div id="selection-bar">
+          <span id="selection-count"></span>
+          <button class="toolbar-btn" id="btn-deselect-all" data-i18n-aria="aria.deselectAll">✕</button>
+        </div>
+
+        <!-- Table or Empty State -->
+        <div id="table-container">
+          <div id="empty-state">
+            <h2 data-i18n="empty.title"></h2>
+            <p data-i18n="empty.description"></p>
+            <div class="empty-actions">
+              <button class="btn btn--primary" id="btn-try-sample" data-i18n="empty.trySample"></button>
+              <button class="btn btn--secondary" id="btn-import-empty" data-i18n="empty.importFile"></button>
+            </div>
+          </div>
+          <table id="data-table" style="display: none;">
+            <caption class="sr-only" data-i18n="app.title"></caption>
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" style="display: none;">
+          <div class="pagination-info">
+            <span id="pagination-info-text"></span>
+          </div>
+          <div class="pagination-controls">
+            <select class="page-size-select" id="page-size-select">
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span data-i18n="table.perPage"></span>
+            <button class="pagination-btn" id="btn-prev-page" data-i18n="table.prev"></button>
+            <span id="page-indicator"></span>
+            <button class="pagination-btn" id="btn-next-page" data-i18n="table.next"></button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Splitter -->
+      <div id="splitter">
+        <button id="btn-toggle-panel" class="panel-toggle-btn" aria-label="Toggle panel">◀</button>
+      </div>
+
+      <!-- Scan Panel -->
+      <aside id="scan-panel">
+        <div class="panel-section">
+          <div class="panel-section-title" tabindex="0" role="button" aria-expanded="true">
+            <span data-i18n="scanner.title"></span>
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="panel-section-content">
+            <div class="scan-mode-toggle">
+              <button class="scan-mode-btn active" data-mode="immediate" data-i18n="scanner.modeImmediate"></button>
+              <button class="scan-mode-btn" data-mode="batch" data-i18n="scanner.modeBatch"></button>
+            </div>
+            <div class="scan-input-row">
+              <input type="text" id="scan-input" data-i18n-placeholder="scanner.inputPlaceholder">
+              <button class="toolbar-btn scan-camera-btn" id="btn-camera-scan" data-i18n="scanner.cameraBtn" aria-label="Camera scan"></button>
+            </div>
+            <p class="scan-count" id="scan-count"></p>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title" tabindex="0" role="button" aria-expanded="true">
+            <span data-i18n="scanner.barcodePreview"></span>
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="panel-section-content">
+            <div class="barcode-preview-area" id="barcode-preview">
+              <p style="color: var(--color-text-muted); font-size: 12px;">—</p>
+            </div>
+            <div class="preview-actions">
+              <button class="toolbar-btn" id="btn-barcode-print" data-i18n="scanner.print" disabled></button>
+              <button class="toolbar-btn" id="btn-barcode-save" data-i18n="scanner.saveImage" disabled></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title" tabindex="0" role="button" aria-expanded="true">
+            <span data-i18n="scanner.history"></span>
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="panel-section-content">
+            <ul class="history-list" id="history-list">
+              <li style="color: var(--color-text-muted);">—</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Status Bar -->
+    <footer id="statusbar">
+      <span id="status-total"></span>
+      <span id="status-collected"></span>
+      <span id="status-returned"></span>
+      <span id="status-displayed"></span>
+    </footer>
+  </div>
+
+  <!-- Undo Bar -->
+  <div id="undo-bar" role="status" aria-live="polite">
+    <span id="undo-message"></span>
+    <button id="btn-undo"></button>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Import Modal -->
+  <div class="modal-overlay" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+    <div class="modal">
+      <div class="modal-title" id="import-modal-title" data-i18n="import.title"></div>
+      <div class="modal-body">
+        <div class="drop-zone" id="import-drop-zone">
+          <p data-i18n="import.dropHere"></p>
+          <p style="margin: 8px 0; color: var(--color-text-muted);" data-i18n="import.or"></p>
+          <button class="btn btn--secondary" id="btn-select-file" data-i18n="import.selectFile"></button>
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display: none;">
+          <p style="margin-top: 12px; font-size: 12px; color: var(--color-text-muted);" data-i18n="import.supportedFormats"></p>
+        </div>
+        <p style="margin-top: 12px; font-size: 13px;">
+          <a href="#" id="btn-download-template" data-i18n="import.downloadTemplate"></a>
+        </p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn--secondary" id="btn-close-import" data-i18n="confirm.cancel"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal">
+      <div class="modal-title" id="confirm-title"></div>
+      <div class="modal-body" id="confirm-body"></div>
+      <div class="modal-actions">
+        <button class="btn btn--secondary" id="confirm-cancel"></button>
+        <button class="btn" id="confirm-ok"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Modal (fullscreen) -->
+  <div class="modal-overlay" id="print-modal" role="dialog" aria-modal="true" aria-labelledby="print-modal-title">
+    <div class="modal modal--fullscreen">
+      <div class="print-modal-header">
+        <span class="modal-title" id="print-modal-title" data-i18n="print.title"></span>
+        <button class="toolbar-btn" id="btn-close-print" data-i18n-aria="aria.closeDialog">✕</button>
+      </div>
+      <div class="print-modal-body">
+        <!-- Left: Settings -->
+        <div class="print-settings" id="print-settings">
+          <!-- Barcode Settings -->
+          <div class="settings-group">
+            <label data-i18n="print.barcodeColumn"></label>
+            <select id="print-barcode-col"></select>
+          </div>
+          <div class="settings-group">
+            <label data-i18n="print.barcodeFormat"></label>
+            <select id="print-barcode-format">
+              <option value="CODE128">Code128</option>
+              <option value="CODE39">Code39</option>
+              <option value="qr">QR</option>
+            </select>
+          </div>
+          <div class="settings-group">
+            <label>
+              <input type="checkbox" id="print-show-text" checked>
+              <span data-i18n="print.showTextBelow"></span>
+            </label>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:12px 0;">
+          <!-- Paper Settings -->
+          <div class="settings-group">
+            <label data-i18n="print.preset"></label>
+            <select id="print-preset">
+              <option value="a4-24">A4 24面 (70×37mm)</option>
+              <option value="a4-21">A4 21面 (70×42.3mm)</option>
+              <option value="a4-10">A4 10面 (86×50.8mm)</option>
+              <option value="custom" data-i18n="print.customPreset"></option>
+            </select>
+          </div>
+          <div class="settings-group settings-row">
+            <div>
+              <label data-i18n="print.columns"></label>
+              <input type="number" id="print-cols" value="3" min="1" max="10" class="setting-number">
+            </div>
+            <div>
+              <label data-i18n="print.rows"></label>
+              <input type="number" id="print-rows" value="8" min="1" max="20" class="setting-number">
+            </div>
+          </div>
+          <div class="settings-group settings-row">
+            <div>
+              <label data-i18n="print.labelWidth"></label>
+              <input type="number" id="print-label-w" value="70" min="10" step="0.1" class="setting-number">
+            </div>
+            <div>
+              <label data-i18n="print.labelHeight"></label>
+              <input type="number" id="print-label-h" value="37" min="10" step="0.1" class="setting-number">
+            </div>
+          </div>
+          <div class="settings-group settings-row">
+            <div>
+              <label data-i18n="print.marginTop"></label>
+              <input type="number" id="print-margin-top" value="11" min="0" step="0.1" class="setting-number">
+            </div>
+            <div>
+              <label data-i18n="print.marginLeft"></label>
+              <input type="number" id="print-margin-left" value="0" min="0" step="0.1" class="setting-number">
+            </div>
+          </div>
+          <div class="settings-group settings-row">
+            <div>
+              <label data-i18n="print.gapH"></label>
+              <input type="number" id="print-gap-h" value="0" min="0" step="0.1" class="setting-number">
+            </div>
+            <div>
+              <label data-i18n="print.gapV"></label>
+              <input type="number" id="print-gap-v" value="0" min="0" step="0.1" class="setting-number">
+            </div>
+          </div>
+          <div class="settings-group">
+            <label data-i18n="print.startPosition"></label>
+            <input type="number" id="print-start-pos" value="1" min="1" class="setting-number">
+          </div>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:12px 0;">
+          <!-- Column display settings -->
+          <div class="settings-group">
+            <label data-i18n="print.displayColumns"></label>
+            <div id="print-column-toggles"></div>
+          </div>
+          <div class="settings-group">
+            <label data-i18n="print.fontSize"></label>
+            <select id="print-font-size">
+              <option value="auto">Auto</option>
+              <option value="6">6pt</option>
+              <option value="7">7pt</option>
+              <option value="8" selected>8pt</option>
+              <option value="9">9pt</option>
+              <option value="10">10pt</option>
+              <option value="12">12pt</option>
+            </select>
+          </div>
+          <div class="settings-group">
+            <label data-i18n="print.barcodeHeight"></label>
+            <input type="number" id="print-barcode-height" value="15" min="5" max="40" class="setting-number">
+          </div>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:12px 0;">
+          <!-- Quick actions -->
+          <div class="settings-group print-quick-actions">
+            <button class="btn btn--secondary btn--sm" data-quick="barcode" data-i18n="print.allBarcode"></button>
+            <button class="btn btn--secondary btn--sm" data-quick="text" data-i18n="print.allText"></button>
+            <button class="btn btn--secondary btn--sm" data-quick="hide" data-i18n="print.allHide"></button>
+            <button class="btn btn--secondary btn--sm" data-quick="default" data-i18n="print.resetDefault"></button>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:12px 0;">
+          <!-- Preset save/load -->
+          <div class="settings-group">
+            <label data-i18n="print.presetName"></label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="print-preset-name" style="flex:1;height:32px;padding:0 8px;border:1px solid var(--color-border);border-radius:var(--radius-md);">
+              <button class="btn btn--secondary btn--sm" id="btn-save-preset" data-i18n="print.savePreset"></button>
+            </div>
+            <select id="print-saved-presets" style="margin-top:6px;width:100%;height:32px;padding:0 8px;border:1px solid var(--color-border);border-radius:var(--radius-md);">
+              <option value="">—</option>
+            </select>
+          </div>
+        </div>
+        <!-- Right: Preview -->
+        <div class="print-preview-area">
+          <div class="print-preview-toolbar">
+            <span id="print-target-info"></span>
+            <div class="print-preview-nav">
+              <button class="toolbar-btn" id="btn-prev-print-page">◀</button>
+              <span id="print-page-indicator">1/1</span>
+              <button class="toolbar-btn" id="btn-next-print-page">▶</button>
+            </div>
+          </div>
+          <div class="print-preview-container" id="print-preview-container">
+            <canvas id="print-preview-canvas"></canvas>
+          </div>
+          <div class="print-preview-actions">
+            <button class="btn btn--primary" id="btn-save-pdf" data-i18n="print.savePdf"></button>
+            <button class="btn btn--secondary" id="btn-direct-print" data-i18n="print.directPrint"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Camera Scan Modal -->
+  <div class="modal-overlay" id="camera-scan-modal" role="dialog" aria-modal="true" aria-labelledby="camera-scan-title">
+    <div class="modal modal--camera">
+      <div class="camera-modal-header">
+        <span class="modal-title" id="camera-scan-title" data-i18n="scanner.cameraScanTitle"></span>
+        <button class="toolbar-btn" id="btn-camera-scan-stop" data-i18n-aria="aria.closeDialog">&#x2715;</button>
+      </div>
+      <div class="camera-modal-body">
+        <div id="camera-viewfinder"></div>
+        <p class="camera-hint" data-i18n="scanner.cameraScanHint"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts (all local — no CDN dependency) -->
+  <script src="vendor/html5-qrcode.min.js"></script>
+  <script src="vendor/dexie.min.js"></script>
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/JsBarcode.all.min.js"></script>
+  <script src="vendor/qrcode.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="js/platform.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/printer.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // Service Worker 登録
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    // PWA インストールプロンプト
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+    window.installPWA = function () {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+      }
+    };
+  </script>
+  <script>
+    // ライブラリ読込チェック
+    (function checkDeps() {
+      const missing = [];
+      if (typeof Dexie === 'undefined') missing.push('Dexie');
+      if (typeof XLSX === 'undefined') missing.push('SheetJS');
+      if (typeof JsBarcode === 'undefined') missing.push('JsBarcode');
+      if (typeof QRCode === 'undefined') missing.push('QRCode');
+      if (typeof window.jspdf === 'undefined') missing.push('jsPDF');
+      if (missing.length > 0) {
+        document.addEventListener('DOMContentLoaded', () => {
+          const msg = `ライブラリの読込に失敗しました（${missing.join(', ')}）。ファイルが破損している可能性があります。アプリを再インストールしてください。`;
+          const banner = document.createElement('div');
+          banner.setAttribute('role', 'alert');
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:12px 16px;background:#dc2626;color:#fff;font-size:14px;z-index:9999;text-align:center;';
+          banner.textContent = msg;
+          document.body.prepend(banner);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
